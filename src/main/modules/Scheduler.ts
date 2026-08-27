@@ -1,8 +1,17 @@
-import { BaseModule, ScanItem, ScanResult, CleanResult } from './BaseModule';
+import { BaseModule, ScanResult, CleanResult } from './BaseModule';
 import { DiskCleaner } from './DiskCleaner';
 import { PrivacyCleaner } from './PrivacyCleaner';
 import * as cron from 'node-cron';
 import { getDb } from '../database/db';
+import { markScheduleRun } from '../database/queries';
+
+interface ScheduleRow {
+    id: number;
+    module: string;
+    cron_expr: string;
+    enabled: number;
+    last_run?: string;
+}
 
 export class Scheduler extends BaseModule {
     readonly moduleName = 'Scheduler';
@@ -11,7 +20,7 @@ export class Scheduler extends BaseModule {
     // Load schedules from SQLite and start them
     public async loadSchedules(): Promise<void> {
         const db = getDb();
-        const schedules = db.prepare('SELECT * FROM schedules WHERE enabled = 1').all() as any[];
+        const schedules = db.prepare('SELECT * FROM schedules WHERE enabled = 1').all() as ScheduleRow[];
 
         // Stop existing
         this.jobs.forEach(job => job.stop());
@@ -40,6 +49,7 @@ export class Scheduler extends BaseModule {
                     const result = await cleaner.clean(scan.items);
                     console.log(`[Scheduler] ${moduleName} freed ${(result.bytesFreed / 1024 / 1024).toFixed(2)} MB`);
                 }
+                markScheduleRun(moduleName);
             }
         } catch (e) {
             console.error(`[Scheduler] Failed to execute ${moduleName}`, e);
@@ -48,7 +58,7 @@ export class Scheduler extends BaseModule {
 
     async scan(): Promise<ScanResult> {
         const db = getDb();
-        const schedules = db.prepare('SELECT * FROM schedules').all() as any[];
+        const schedules = db.prepare('SELECT * FROM schedules').all() as ScheduleRow[];
 
         return {
             items: schedules.map(s => ({
@@ -63,10 +73,12 @@ export class Scheduler extends BaseModule {
         };
     }
 
-    async clean(items: ScanItem[]): Promise<CleanResult> {
+    async clean(): Promise<CleanResult> {
         // Treat clean as save / update
         throw new Error('Scheduler configuration is handled via dedicated DB_SAVE_SCHEDULE IPC channels in settings.');
     }
 
-    async rollback(): Promise<void> { }
+    async rollback(): Promise<void> {
+        throw new Error('Scheduler changes are restored by updating the schedule.');
+    }
 }

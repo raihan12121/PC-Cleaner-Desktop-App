@@ -23,7 +23,7 @@ A modern, high-performance desktop application built with **Electron, React, and
 
 *   **Framework**: Electron (Forge + Vite)
 *   **Language**: TypeScript (strict mode)
-*   **Frontend**: React 18 + React Router v6
+*   **Frontend**: React 19 + React Router v7
 *   **Styling**: Tailwind CSS v4
 *   **Charts**: Recharts
 *   **Database**: `better-sqlite3` (SQLite)

@@ -1,0 +1,64 @@
+import fs from 'fs';
+import path from 'path';
+import { ScanItem } from './modules/BaseModule';
+
+const MAX_SCAN_ITEMS = 10000;
+
+export function assertScanItems(value: unknown): asserts value is ScanItem[] {
+    if (!Array.isArray(value) || value.length > MAX_SCAN_ITEMS) {
+        throw new Error('Invalid cleanup item list.');
+    }
+
+    for (const item of value) {
+        if (!item || typeof item !== 'object') throw new Error('Invalid cleanup item.');
+        const candidate = item as Partial<ScanItem>;
+        if (typeof candidate.id !== 'string' || !candidate.id ||
+            typeof candidate.path !== 'string' || !candidate.path ||
+            typeof candidate.name !== 'string' ||
+            typeof candidate.category !== 'string' ||
+            typeof candidate.selected !== 'boolean' ||
+            typeof candidate.size !== 'number' || !Number.isFinite(candidate.size) || candidate.size < 0) {
+            throw new Error('Invalid cleanup item data.');
+        }
+    }
+}
+
+export function assertScanId(scanId: unknown): asserts scanId is number {
+    if (typeof scanId !== 'number' || !Number.isSafeInteger(scanId) || scanId <= 0) {
+        throw new Error('A valid scan ID is required.');
+    }
+}
+
+export function canonicalizePath(p: string): string {
+    let resolved = path.resolve(p);
+    try {
+        if (fs.existsSync(resolved)) {
+            resolved = fs.realpathSync.native ? fs.realpathSync.native(resolved) : fs.realpathSync(resolved);
+        }
+    } catch {
+        // fallback
+    }
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+export function isPathWithin(child: string, parent: string): boolean {
+    const normParent = canonicalizePath(parent);
+    const normChild = canonicalizePath(child);
+    const relative = path.relative(normParent, normChild);
+    return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+}
+
+export async function assertSafeFile(filePath: string, allowedRoot: string): Promise<void> {
+    if (!isPathWithin(filePath, allowedRoot)) throw new Error('Path is outside the permitted cleanup directory.');
+    const stat = await fs.promises.lstat(filePath);
+    if (!stat.isFile()) throw new Error('Only regular files can be cleaned.');
+}
+
+export function assertExistingDirectory(directory: string): void {
+    if (typeof directory !== 'string' || !path.isAbsolute(directory)) throw new Error('A valid absolute directory is required.');
+    if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) throw new Error('Directory does not exist.');
+}
+
+export function quotePowerShell(value: string): string {
+    return `'${value.replace(/'/g, "''")}'`;
+}

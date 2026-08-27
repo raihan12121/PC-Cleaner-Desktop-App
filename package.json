@@ -1,7 +1,7 @@
 {
   "name": "pc-cleaner",
   "productName": "PC Cleaner",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
   "private": true,
@@ -10,7 +10,9 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "Muhammad Raihan",
@@ -40,19 +42,19 @@
     "eslint-plugin-import": "^2.32.0",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2",
-    "typescript": "~4.5.4",
+    "typescript": "^5.9.3",
     "vite": "^5.4.21",
     "vitest": "^4.1.4"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
     "electron-squirrel-startup": "^1.0.1",
-    "electron-updater": "^6.8.3",
+    "electron-updater": "^6.8.9",
     "node-cron": "^4.2.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-router-dom": "^7.14.0",
+    "react-router-dom": "^7.18.2",
     "recharts": "^3.8.1",
-    "systeminformation": "^5.31.5"
+    "systeminformation": "^5.33.5"
   }
 }

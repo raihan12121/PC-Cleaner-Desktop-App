@@ -22,7 +22,7 @@ const Dashboard: React.FC = () => {
         { name: 'Free', value: 70 },
     ]);
 
-    const [lineData, setLineData] = useState<any[]>([]);
+    const [lineData, setLineData] = useState<Array<{ day: string; saved: number }>>([]);
 
     useEffect(() => {
         const fetchData = async (firstLoad = false) => {
@@ -32,30 +32,33 @@ const Dashboard: React.FC = () => {
                 const history = await getTimeline();
 
                 if (info && !info.error) {
-                    const mainDisk = info.disk?.find((d: any) => d.mount?.startsWith('C:')) || info.disk?.[0];
+                    const mainDisk = info.disk?.find((d: any) => d.mount?.toLowerCase().startsWith('c:')) || info.disk?.[0];
                     if (mainDisk) {
                         setPieData([
-                            { name: 'Used', value: mainDisk.used },
-                            { name: 'Free', value: mainDisk.size - mainDisk.used }
+                            { name: 'Used', value: Math.max(0, mainDisk.used || 0) },
+                            { name: 'Free', value: Math.max(0, (mainDisk.size || 0) - (mainDisk.used || 0)) }
                         ]);
 
-                        const usageRatio = mainDisk.used / mainDisk.size;
+                        const usageRatio = mainDisk.size > 0 ? mainDisk.used / mainDisk.size : 0;
                         setHealthScore(Math.max(20, Math.floor(100 - (usageRatio * 80))));
                     }
 
                     if (info.mem) {
+                        const usedRam = info.mem.used ?? info.mem.active ?? 0;
                         setStats(prev => ({
                             ...prev,
-                            ramUsed: (info.mem.active || 0) / (1024 ** 3),
+                            ramUsed: usedRam / (1024 ** 3),
                             ramTotal: (info.mem.total || 1) / (1024 ** 3)
                         }));
                     }
                 }
 
                 if (Array.isArray(history)) {
-                    setLineData(history.map(h => ({
+                    // History is fetched in DESC order; reverse to display chronological (oldest to newest)
+                    const chronological = [...history].reverse();
+                    setLineData(chronological.map(h => ({
                         day: h.date,
-                        saved: (h.saved / (1024 ** 3)).toFixed(2)
+                        saved: Number(((h.saved || 0) / (1024 ** 3)).toFixed(2))
                     })));
                 }
             } catch (e) {

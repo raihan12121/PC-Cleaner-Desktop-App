@@ -59,6 +59,11 @@ const App = () => {
                 <div className="flex-1 overflow-hidden relative border-l border-white/5">
                     <div className="absolute inset-0 bg-slate-950 shadow-2xl rounded-l-3xl overflow-hidden border-l border-slate-800/40">
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.05),transparent_60%)] pointer-events-none"></div>
+                        <div className="absolute right-4 top-2 z-20 flex gap-1" role="group" aria-label="Window controls">
+                            <button type="button" aria-label="Minimize window" title="Minimize" onClick={() => window.api.minimize()} className="h-8 w-8 rounded text-slate-400 hover:bg-slate-800 hover:text-white">—</button>
+                            <button type="button" aria-label="Maximize window" title="Maximize" onClick={() => window.api.maximize()} className="h-8 w-8 rounded text-slate-400 hover:bg-slate-800 hover:text-white">□</button>
+                            <button type="button" aria-label="Close window" title="Close" onClick={() => window.api.close()} className="h-8 w-8 rounded text-slate-400 hover:bg-red-600 hover:text-white">×</button>
+                        </div>
                         <Routes>
                             <Route path="/" element={<Dashboard />} />
                             <Route path="/cleaner" element={<Cleaner />} />
@@ -68,6 +73,7 @@ const App = () => {
                             <Route path="/privacy" element={<Privacy />} />
                             <Route path="/monitor" element={<SystemMonitor />} />
                             <Route path="/settings" element={<Settings />} />
+                            <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>
                     </div>
                 </div>

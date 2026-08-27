@@ -35,18 +35,6 @@ export class RamOptimizer extends BaseModule {
                 // Measure before
                 const memBefore = await si.mem();
 
-                // EmptyWorkingSet for all processes (Needs Admin/UAC technically, but we run as is for demo)
-                const psScript = `
-          [DllImport("psapi.dll")]
-          public static extern int EmptyWorkingSet(IntPtr hwProc);
-          
-          Get-Process | ForEach-Object {
-              try {
-                  [psapi]::EmptyWorkingSet($_.Handle) | Out-Null
-              } catch {}
-          }
-        `;
-
                 // Add-Type requires compilation so it might be slow, but this is a standard PS way
                 const fullScript = `
           Add-Type -TypeDefinition '
@@ -72,6 +60,10 @@ export class RamOptimizer extends BaseModule {
                 console.error('RAM Optimization failed', e);
                 return { itemsRemoved: 0, bytesFreed: 0, success: false, error: String(e) };
             }
+        }
+
+        if (os.platform() !== 'win32') {
+            return { itemsRemoved: 0, bytesFreed: 0, success: false, error: 'RAM optimization is only supported on Windows.' };
         }
 
         return { itemsRemoved: 1, bytesFreed, success: true };

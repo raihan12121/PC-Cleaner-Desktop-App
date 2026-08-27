@@ -1,7 +1,6 @@
 import { BaseModule, ScanItem, ScanResult, CleanResult } from './BaseModule';
 import fs from 'fs';
 import path from 'path';
-import { app } from 'electron';
 import os from 'os';
 
 export class PrivacyCleaner extends BaseModule {
@@ -63,9 +62,16 @@ export class PrivacyCleaner extends BaseModule {
     async clean(items: ScanItem[]): Promise<CleanResult> {
         let itemsRemoved = 0;
         let bytesFreed = 0;
+        const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+        const allowedRoots = [
+            path.join(localAppData, 'Google', 'Chrome', 'User Data', 'Default', 'Network'),
+            path.join(localAppData, 'Microsoft', 'Edge', 'User Data', 'Default', 'Network'),
+            path.join(os.homedir(), 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Recent'),
+        ];
 
         for (const item of items) {
             try {
+                if (!allowedRoots.some(root => path.resolve(item.path) === path.resolve(root))) throw new Error('Privacy path is not a recognized cleanup target.');
                 if (fs.existsSync(item.path)) {
                     await fs.promises.rm(item.path, { recursive: true, force: true });
                     itemsRemoved++;
@@ -76,7 +82,7 @@ export class PrivacyCleaner extends BaseModule {
             }
         }
 
-        return { itemsRemoved, bytesFreed, success: true };
+        return { itemsRemoved, bytesFreed, success: items.length === 0 || itemsRemoved === items.length };
     }
 
     async rollback(): Promise<void> {

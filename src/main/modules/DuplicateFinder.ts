@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { app } from 'electron';
+import { assertSafeFile } from '../validation';
+import { logRestorePoint } from '../database/queries';
 
 export class DuplicateFinder extends BaseModule {
     readonly moduleName = 'DuplicateFinder';
@@ -14,7 +16,10 @@ export class DuplicateFinder extends BaseModule {
 
             stream.on('data', (data) => hash.update(data));
             stream.on('end', () => resolve(hash.digest('hex')));
-            stream.on('error', reject);
+            stream.on('error', (err) => {
+                stream.destroy();
+                reject(err);
+            });
         });
     }
 
@@ -37,7 +42,7 @@ export class DuplicateFinder extends BaseModule {
     }
 
     async scan(options?: { directory: string }): Promise<ScanResult> {
-        // Default to the user's Downloads or Documents folder if none provided
+        // Default to the user's Downloads folder if none provided
         const targetDir = options?.directory || app.getPath('downloads');
         const allFiles = await this.walkDir(targetDir);
 
@@ -57,7 +62,7 @@ export class DuplicateFinder extends BaseModule {
 
         // 2. Group by MD5 hash
         const md5Groups = new Map<string, string[]>();
-        for (const [size, files] of sizeGroups.entries()) {
+        for (const files of sizeGroups.values()) {
             if (files.length < 2) continue; // Only hash if at least 2 files have same size
 
             for (const file of files) {
@@ -82,10 +87,14 @@ export class DuplicateFinder extends BaseModule {
 
             const sha256Groups = new Map<string, string[]>();
             for (const file of files) {
-                const hash = await this.getFileHash(file, 'sha256');
-                const group = sha256Groups.get(hash) || [];
-                group.push(file);
-                sha256Groups.set(hash, group);
+                try {
+                    const hash = await this.getFileHash(file, 'sha256');
+                    const group = sha256Groups.get(hash) || [];
+                    group.push(file);
+                    sha256Groups.set(hash, group);
+                } catch (e) {
+                    // ignore
+                }
             }
 
             for (const exactMatches of sha256Groups.values()) {
@@ -95,20 +104,25 @@ export class DuplicateFinder extends BaseModule {
                 // Keep the first file (don't select it), mark others for deletion
                 for (let i = 0; i < exactMatches.length; i++) {
                     const filePath = exactMatches[i];
-                    const stat = await fs.promises.stat(filePath);
+                    try {
+                        const stat = await fs.promises.stat(filePath);
 
-                    if (i > 0) {
-                        totalBytes += stat.size;
+                        if (i > 0) {
+                            totalBytes += stat.size;
+                        }
+
+                        items.push({
+                            id: Buffer.from(filePath).toString('base64'),
+                            path: filePath,
+                            name: path.basename(filePath),
+                            size: stat.size,
+                            category: `Duplicate Set ${groupId}`,
+                            selected: i > 0, // Select all but the first one for deletion
+                            metadata: { rootDir: targetDir }
+                        });
+                    } catch (e) {
+                        // ignore
                     }
-
-                    items.push({
-                        id: Buffer.from(filePath).toString('base64'),
-                        path: filePath,
-                        name: path.basename(filePath),
-                        size: stat.size,
-                        category: `Duplicate Set ${groupId}`,
-                        selected: i > 0, // Select all but the first one for deletion
-                    });
                 }
             }
         }
@@ -120,7 +134,6 @@ export class DuplicateFinder extends BaseModule {
         let itemsRemoved = 0;
         let bytesFreed = 0;
 
-        // TODO: Copy to a restore folder before deletion? The instructions say "Back up to restore folder"
         const restoreDir = path.join(app.getPath('userData'), 'restore', 'duplicates');
         if (!fs.existsSync(restoreDir)) {
             await fs.promises.mkdir(restoreDir, { recursive: true });
@@ -129,11 +142,15 @@ export class DuplicateFinder extends BaseModule {
         for (const item of items) {
             try {
                 if (fs.existsSync(item.path)) {
-                    // Copy to restore dir
-                    const backupPath = path.join(restoreDir, `${Date.now()}_${item.name}`);
+                    const allowedRoot = (item.metadata && typeof item.metadata.rootDir === 'string')
+                        ? item.metadata.rootDir
+                        : app.getPath('downloads');
+                    await assertSafeFile(item.path, allowedRoot);
+
+                    const backupPath = path.join(restoreDir, `${Date.now()}_${crypto.randomUUID()}_${item.name}`);
                     await fs.promises.copyFile(item.path, backupPath);
 
-                    // Log to restore_points DB table (todo)
+                    logRestorePoint({ module: this.moduleName, filePath: backupPath });
 
                     // Delete original
                     await fs.promises.unlink(item.path);
@@ -148,13 +165,11 @@ export class DuplicateFinder extends BaseModule {
         return {
             itemsRemoved,
             bytesFreed,
-            success: itemsRemoved === items.length,
+            success: items.length === 0 || itemsRemoved === items.length,
         };
     }
 
     async rollback(): Promise<void> {
-        // Actually implementing complete rollback would require restoring everything from the restore directory based on db records
-        // This is a stub for the interface requirements.
         console.log('Rollback called for DuplicateFinder');
     }
 }

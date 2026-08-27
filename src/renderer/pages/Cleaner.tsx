@@ -17,10 +17,10 @@ interface ScanResult {
 }
 
 const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
@@ -54,9 +54,10 @@ const Cleaner: React.FC = () => {
                 items: scanData.items.filter(item => !itemsToClean.find(i => i.id === item.id)),
                 totalBytes: scanData.totalBytes - result.bytesFreed
             });
-        } catch (e: any) {
-            console.error('Clean failed:', e);
-            alert('Clean failed: ' + e.message);
+        } catch (e: unknown) {
+            const err = e as Error;
+            console.error('Clean failed:', err);
+            alert('Clean failed: ' + (err?.message || String(e)));
         } finally {
             setCleaning(false);
         }
@@ -102,10 +103,10 @@ const Cleaner: React.FC = () => {
             )}
 
             {cleanSummary && (
-                <div className="bg-green-500/10 border border-green-500/30 text-green-400 p-4 rounded-lg mb-6 flex justify-between items-center">
+                <div className={`border p-4 rounded-lg mb-6 flex justify-between items-center ${cleanSummary.itemsRemoved > 0 ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
                     <div>
-                        <h3 className="font-bold text-lg mb-1">Cleanup Complete</h3>
-                        <p>Successfully securely shredded {cleanSummary.itemsRemoved} items.</p>
+                        <h3 className="font-bold text-lg mb-1">{cleanSummary.itemsRemoved > 0 ? 'Cleanup Complete' : 'Files in Use'}</h3>
+                        <p>{cleanSummary.itemsRemoved > 0 ? `Successfully securely shredded ${cleanSummary.itemsRemoved} items.` : 'Selected files are currently in-use or locked by active applications and were skipped.'}</p>
                     </div>
                     <div className="text-3xl font-bold text-green-300">
                         {formatBytes(cleanSummary.bytesFreed)} Freed

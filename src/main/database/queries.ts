@@ -20,6 +20,11 @@ interface CleanLog {
     bytesFreed: number;
 }
 
+interface RestorePointLog {
+    module: string;
+    filePath: string;
+}
+
 export function logCleanHistory(data: CleanLog): number {
     const db = getDb();
     const info = db.prepare(
@@ -38,4 +43,39 @@ export function getScanTimeline() {
     ORDER BY date(timestamp) DESC
     LIMIT 7
   `).all();
+}
+
+export function getScanResults() {
+    return getDb().prepare('SELECT * FROM scan_results ORDER BY timestamp DESC, id DESC LIMIT 100').all();
+}
+
+export function logRestorePoint(data: RestorePointLog): number {
+    const db = getDb();
+    const info = db.prepare(
+        'INSERT INTO restore_points (module, file_path) VALUES (?, ?)'
+    ).run(data.module, data.filePath);
+    return info.lastInsertRowid as number;
+}
+
+export function getSchedules() {
+    return getDb().prepare('SELECT * FROM schedules ORDER BY id DESC').all();
+}
+
+export function saveSchedule(module: string, cronExpr: string, enabled: boolean): number {
+    const db = getDb();
+    const existing = db.prepare('SELECT id FROM schedules WHERE module = ?').get(module) as { id: number } | undefined;
+    if (existing) {
+        db.prepare('UPDATE schedules SET cron_expr = ?, enabled = ? WHERE id = ?').run(cronExpr, enabled ? 1 : 0, existing.id);
+        return existing.id;
+    }
+    const result = db.prepare('INSERT INTO schedules (module, cron_expr, enabled) VALUES (?, ?, ?)').run(module, cronExpr, enabled ? 1 : 0);
+    return result.lastInsertRowid as number;
+}
+
+export function deleteSchedule(module: string): void {
+    getDb().prepare('DELETE FROM schedules WHERE module = ?').run(module);
+}
+
+export function markScheduleRun(module: string): void {
+    getDb().prepare("UPDATE schedules SET last_run = datetime('now', 'localtime') WHERE module = ?").run(module);
 }

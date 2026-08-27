@@ -4,6 +4,7 @@ import { IPC_CHANNELS } from '../../main/ipc/channels';
 
 const Settings: React.FC = () => {
     const { invoke: resetData } = useIpc(IPC_CHANNELS.DB_RESET);
+    const { invoke: saveSchedule, error: scheduleError } = useIpc(IPC_CHANNELS.DB_SAVE_SCHEDULE);
     const [scheduledScan, setScheduledScan] = useState(false);
     const [smartAlerts, setSmartAlerts] = useState(true);
     const [theme, setTheme] = useState('Dark');
@@ -35,13 +36,13 @@ const Settings: React.FC = () => {
                             <div className="font-medium text-slate-300">Daily Quick Clean</div>
                             <div className="text-sm text-slate-500">Automatically clean temp files and browser cache at 2:00 AM</div>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
+                        <label className="relative inline-flex items-center cursor-pointer" aria-label="Enable daily quick clean">
                             <input
                                 type="checkbox"
                                 value=""
                                 className="sr-only peer"
                                 checked={scheduledScan}
-                                onChange={() => setScheduledScan(!scheduledScan)}
+                                 onChange={async () => { const next = !scheduledScan; setScheduledScan(next); try { await saveSchedule('DiskCleaner', '0 2 * * *', next); } catch { setScheduledScan(!next); } }}
                             />
                             <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
                         </label>
@@ -101,6 +102,7 @@ const Settings: React.FC = () => {
                     </div>
                 </div>
             </div>
+            {scheduleError && <div className="max-w-4xl rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">{scheduleError}</div>}
         </div>
     );
 };

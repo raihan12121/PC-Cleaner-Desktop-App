@@ -11,8 +11,8 @@ interface ScanItem {
 }
 
 const Privacy: React.FC = () => {
-    const { invoke: scan, loading: scanning, data: scanData } = useIpc<{ items: ScanItem[], totalBytes: number }>('privacy:scan');
-    const { invoke: clean, loading: cleaning } = useIpc('privacy:clean');
+    const { invoke: scan, loading: scanning, error: scanError, data: scanData } = useIpc<{ items: ScanItem[], totalBytes: number, scanId: number }>('privacy:scan');
+    const { invoke: clean, loading: cleaning, error: cleanError } = useIpc('privacy:clean');
 
     const [cleaned, setCleaned] = useState(false);
 
@@ -21,9 +21,10 @@ const Privacy: React.FC = () => {
 
         if (confirm('Are you sure you want to delete these privacy items? This will sign you out of websites and delete history.')) {
             try {
-                await clean(scanData.items, 0);
+                const result = await clean(scanData.items, scanData.scanId);
+                if (!result?.success) throw new Error(result?.error || 'Some privacy items could not be cleaned.');
                 setCleaned(true);
-            } catch (e) { }
+            } catch (e) { /* displayed below through hook error state */ }
         }
     };
 
@@ -44,6 +45,7 @@ const Privacy: React.FC = () => {
                     </button>
                 </div>
             </div>
+            {(scanError || cleanError) && <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">{scanError || cleanError}</div>}
 
             <div className="flex-1 bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden flex flex-col">
                 {!scanData && !scanning && !cleaned && (
@@ -82,7 +84,7 @@ const Privacy: React.FC = () => {
                         <div className="p-6 border-t border-slate-800 bg-slate-950">
                             <button
                                 onClick={handleClean}
-                                disabled={cleaning}
+                                disabled={cleaning || scanData.items.length === 0}
                                 className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-lg transition-colors shadow-lg shadow-rose-600/20 disabled:opacity-50"
                             >
                                 {cleaning ? 'Securing...' : 'Wipe All Privacy Traces'}

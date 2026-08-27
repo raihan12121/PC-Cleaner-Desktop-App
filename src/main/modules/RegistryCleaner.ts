@@ -85,35 +85,54 @@ export class RegistryCleaner extends BaseModule {
         if (!fs.existsSync(backupDir)) {
             await fs.promises.mkdir(backupDir, { recursive: true });
         }
-        const backupFile = path.join(backupDir, `backup_${timestamp}.reg`);
+        const backupFile = path.join(backupDir, `backup_${timestamp}`);
 
         try {
-            // Ideally we should export each key, but simplified here
-            // For a real app, `reg export "HKLM\\..." C:\\...`
-            const exportScript = items.map(item => `reg export "${item.path}" "${backupFile}_${item.id}.reg" /y`).join('; ');
+            for (const item of items) {
+                if (!/^HKEY_(LOCAL_MACHINE|CURRENT_USER)\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\[^\\]+$/i.test(item.path)) {
+                    throw new Error('Invalid registry cleanup path.');
+                }
 
-            await execFileAsync('powershell.exe', ['-Command', exportScript]);
+                const itemBackup = `${backupFile}_${item.id}.reg`;
 
-            // 2. Delete
-            const deleteScript = items.map(item => `Remove-Item -Path 'Registry::${item.path}' -Recurse -Force`).join('; ');
-            await execFileAsync('powershell.exe', ['-Command', deleteScript]);
+                // Export registry key backup using reg.exe directly
+                try {
+                    await execFileAsync('reg.exe', ['export', item.path, itemBackup, '/y']);
+                } catch (exportErr) {
+                    console.warn(`Registry backup warning for ${item.path}:`, exportErr);
+                }
 
-            itemsRemoved = items.length;
+                // Delete the registry key using reg.exe delete directly
+                await execFileAsync('reg.exe', ['delete', item.path, '/f']);
+                itemsRemoved++;
+            }
         } catch (e) {
             console.error('Failed to clean registry:', e);
-            return { itemsRemoved: 0, bytesFreed: 0, success: false, error: String(e) };
+            return { itemsRemoved, bytesFreed: 0, success: false, error: String(e) };
         }
 
         return {
             itemsRemoved,
             bytesFreed: 0,
-            success: true
+            success: itemsRemoved === items.length
         };
     }
 
     async rollback(): Promise<void> {
         if (!this.isWindows()) return;
-        // Real implementation would look up the last reg export from DB and `reg import` it.
-        console.log('Rollback called for RegistryCleaner');
+        const backupDir = path.join(app.getPath('userData'), 'restore', 'registry');
+        if (!fs.existsSync(backupDir)) {
+            throw new Error('No registry backups found to restore.');
+        }
+
+        const files = (await fs.promises.readdir(backupDir)).filter(f => f.endsWith('.reg'));
+        if (files.length === 0) {
+            throw new Error('No registry backups found to restore.');
+        }
+
+        // Sort newest first
+        files.sort().reverse();
+        const latestBackup = path.join(backupDir, files[0]);
+        await execFileAsync('reg.exe', ['import', latestBackup]);
     }
 }

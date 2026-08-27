@@ -2,25 +2,33 @@ import React, { useEffect, useState } from 'react';
 import { useIpc } from '../hooks/useIpc';
 import { IPC_CHANNELS } from '../../main/ipc/channels';
 
+interface StartupItem {
+    id: string;
+    name: string;
+    path: string;
+    category: string;
+}
+
 const Optimizer: React.FC = () => {
     const { invoke: scanRam, loading: ramScanning } = useIpc(IPC_CHANNELS.RAM_INFO);
     const { invoke: optimizeRam, loading: ramOptimizing } = useIpc(IPC_CHANNELS.RAM_OPTIMIZE);
     const { invoke: getStartup, loading: startupScanning } = useIpc(IPC_CHANNELS.STARTUP_SCAN);
-    const { invoke: toggleStartup } = useIpc(IPC_CHANNELS.STARTUP_TOGGLE);
+    const { invoke: toggleStartup, error: startupError } = useIpc(IPC_CHANNELS.STARTUP_TOGGLE);
 
     const [ramUsage, setRamUsage] = useState<number>(0);
     const [ramTotal, setRamTotal] = useState<number>(1);
     const [ramSaved, setRamSaved] = useState<number | null>(null);
-    const [startupItems, setStartupItems] = useState<any[]>([]);
+    const [startupItems, setStartupItems] = useState<StartupItem[]>([]);
+    const [startupScanId, setStartupScanId] = useState<number | null>(null);
 
     const fetchRam = async () => {
         try {
             const result = await scanRam();
             if (result && result.items && result.items.length > 0) {
                 setRamUsage(result.items[0].size);
-                setRamTotal(result.items[0].metadata.total || 1);
+                setRamTotal(result.items[0].metadata?.total || 1);
             }
-        } catch (e) { }
+        } catch { /* displayed through hook state */ }
     };
 
     const fetchStartup = async () => {
@@ -28,8 +36,9 @@ const Optimizer: React.FC = () => {
             const result = await getStartup();
             if (result && Array.isArray(result.items)) {
                 setStartupItems(result.items);
+                setStartupScanId(result.scanId ?? null);
             }
-        } catch (e) { }
+        } catch { /* displayed through hook state */ }
     };
 
     useEffect(() => {
@@ -42,16 +51,15 @@ const Optimizer: React.FC = () => {
             const result = await optimizeRam();
             setRamSaved(result.bytesFreed);
             fetchRam();
-        } catch (e) { }
+        } catch { /* displayed through hook state */ }
     };
 
-    const handleToggleStartup = async (item: any) => {
+    const handleToggleStartup = async (item: StartupItem) => {
         try {
-            // In our current implementation, "clean" deletes it from registry
-            // So we just call the toggle IPC with the selected item
-            await toggleStartup([item]);
+            if (!startupScanId) throw new Error('Please refresh startup items before changing them.');
+            await toggleStartup([item], startupScanId);
             fetchStartup();
-        } catch (e) { }
+        } catch { /* displayed through hook state */ }
     };
 
     const ramPercent = Math.round((ramUsage / ramTotal) * 100) || 0;
@@ -62,6 +70,7 @@ const Optimizer: React.FC = () => {
                 <h1 className="text-3xl font-bold text-white mb-2">Optimizer</h1>
                 <p className="text-slate-400">Speed up your system by managing startup apps and RAM.</p>
             </div>
+            {startupError && <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">{startupError}</div>}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
                 {/* Startup Manager */}

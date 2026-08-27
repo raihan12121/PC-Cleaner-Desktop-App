@@ -17,18 +17,24 @@ interface ScanResult {
     scanId: number;
 }
 
+interface CleanSummary {
+    itemsRemoved: number;
+    bytesFreed: number;
+    success: boolean;
+}
+
 const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 const DuplicateFinder: React.FC = () => {
     const { invoke: startScan, loading: scanning, error, data: scanData, setData: setScanData } = useIpc<ScanResult>(IPC_CHANNELS.DUPLICATE_SCAN);
     const [cleaning, setCleaning] = useState(false);
-    const [cleanSummary, setCleanSummary] = useState<any>(null);
+    const [cleanSummary, setCleanSummary] = useState<CleanSummary | null>(null);
 
     const handleScan = () => {
         setCleanSummary(null);
@@ -50,8 +56,8 @@ const DuplicateFinder: React.FC = () => {
                     items: scanData.items.filter(item => !selected.find(s => s.id === item.id)),
                     totalBytes: scanData.totalBytes - result.bytesFreed
                 });
-            } catch (e) {
-                alert('Deduplication failed: ' + e);
+            } catch (e: any) {
+                alert('Deduplication failed: ' + (e?.message || e));
             } finally {
                 setCleaning(false);
             }
@@ -90,6 +96,12 @@ const DuplicateFinder: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            {error && (
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">
+                    Scan failed: {error}
+                </div>
+            )}
 
             {cleanSummary && (
                 <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl flex justify-between items-center animate-in fade-in slide-in-from-top-4">

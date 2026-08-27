@@ -1,14 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { useIpc } from '../hooks/useIpc';
 import { IPC_CHANNELS } from '../../main/ipc/channels';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
+
+interface DataPoint {
+    cpu: number;
+    ram: number;
+}
+
+interface ProcessItem {
+    name: string;
+    pid: number;
+    cpu: number;
+    memRss?: number;
+    mem?: number;
+}
 
 const SystemMonitor: React.FC = () => {
     const { invoke: getInfo } = useIpc(IPC_CHANNELS.SYSTEM_INFO);
     const { invoke: getProcesses } = useIpc(IPC_CHANNELS.SYSTEM_PROCESSES);
 
-    const [dataPoints, setDataPoints] = useState<any[]>(Array(20).fill({ cpu: 0, ram: 0 }));
-    const [processes, setProcesses] = useState<any[]>([]);
+    const [dataPoints, setDataPoints] = useState<DataPoint[]>(
+        Array.from({ length: 20 }, () => ({ cpu: 0, ram: 0 }))
+    );
+    const [processes, setProcesses] = useState<ProcessItem[]>([]);
 
     useEffect(() => {
         const fetchMonitorData = async () => {
@@ -17,20 +32,25 @@ const SystemMonitor: React.FC = () => {
                 const procList = await getProcesses();
 
                 if (info && !info.error) {
-                    const cpuUsage = info.cpu.currentLoad || Math.floor(Math.random() * 20); // Fallback for si behavior
-                    const ramUsage = (info.mem.active / info.mem.total) * 100;
+                    const cpuUsage = Number(info.cpu?.currentLoad ?? 0);
+                    const totalMem = info.mem?.total || 1;
+                    const usedMem = info.mem?.used ?? info.mem?.active ?? 0;
+                    const ramUsage = (usedMem / totalMem) * 100;
 
                     setDataPoints(prev => {
-                        const newPoint = {
-                            cpu: cpuUsage,
-                            ram: ramUsage
+                        const newPoint: DataPoint = {
+                            cpu: Math.min(100, Math.max(0, cpuUsage)),
+                            ram: Math.min(100, Math.max(0, ramUsage))
                         };
                         return [...prev.slice(1), newPoint];
                     });
                 }
 
                 if (procList && Array.isArray(procList.list)) {
-                    setProcesses(procList.list.slice(0, 15).sort((a: any, b: any) => b.cpu - a.cpu));
+                    const sorted = [...procList.list]
+                        .sort((a: ProcessItem, b: ProcessItem) => (b.cpu || 0) - (a.cpu || 0))
+                        .slice(0, 15);
+                    setProcesses(sorted);
                 }
             } catch (e) {
                 console.error('Monitor update failed:', e);
@@ -92,8 +112,8 @@ const SystemMonitor: React.FC = () => {
                                 <tr key={`${proc.pid}-${i}`} className="border-b border-slate-800 hover:bg-slate-800/30">
                                     <td className="px-4 py-3 font-medium truncate max-w-[200px]">{proc.name}</td>
                                     <td className="px-4 py-3 font-mono text-slate-400">{proc.pid}</td>
-                                    <td className="px-4 py-3 text-cyan-400">{proc.cpu.toFixed(1)}%</td>
-                                    <td className="px-4 py-3">{(proc.memRss / 1024).toFixed(1)}</td>
+                                    <td className="px-4 py-3 text-cyan-400">{Number(proc.cpu || 0).toFixed(1)}%</td>
+                                    <td className="px-4 py-3">{(((proc.memRss || proc.mem || 0)) / 1024).toFixed(1)}</td>
                                 </tr>
                             ))}
                         </tbody>

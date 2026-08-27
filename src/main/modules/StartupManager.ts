@@ -1,7 +1,7 @@
 import { BaseModule, ScanItem, ScanResult, CleanResult } from './BaseModule';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import path from 'path';
+import { quotePowerShell } from '../validation';
 import os from 'os';
 
 const execFileAsync = promisify(execFile);
@@ -76,22 +76,23 @@ export class StartupManager extends BaseModule {
         let itemsRemoved = 0;
         const isWin = os.platform() === 'win32';
 
+        if (!isWin) return { itemsRemoved: 0, bytesFreed: 0, success: false, error: 'Startup management is only supported on Windows.' };
+
         for (const item of items) {
             try {
-                if (isWin && item.category === 'Registry (HKCU Run)') {
+                if (item.category === 'Registry (HKCU Run)' && item.name.length > 0) {
                     // To disable, we typically move it to a different registry key or delete it
                     // For simplicity in this demo, we'll just delete it from Run.
-                    const psScript = `Remove-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" -Name "${item.name}" -Force`;
+                    const psScript = `Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name ${quotePowerShell(item.name)} -Force`;
                     await execFileAsync('powershell.exe', ['-Command', psScript]);
                     itemsRemoved++;
                 }
-                // Mac implementation requires modifying plist files or launchctl unload, skipping for concise demo.
             } catch (e) {
                 console.error(`Failed to handle startup item ${item.name}`, e);
             }
         }
 
-        return { itemsRemoved, bytesFreed: 0, success: true };
+        return { itemsRemoved, bytesFreed: 0, success: items.length === 0 || itemsRemoved === items.length };
     }
 
     async rollback(): Promise<void> {

@@ -9,7 +9,7 @@ export class DriveHealth extends BaseModule {
 
         try {
             const diskLayout = await si.diskLayout();
-            const smartData = (await (si as any).smart().catch(() => [])) as any[]; // Handle potential missing or access denied
+            const smartData = (await (si as any).smart().catch((): any[] => [])) as any[]; // Handle potential missing or access denied
 
             let idCounter = 1;
             for (const disk of diskLayout) {
@@ -58,5 +58,7 @@ export class DriveHealth extends BaseModule {
         throw new Error('DriveHealth module is read-only operations.');
     }
 
-    async rollback(): Promise<void> { }
+    async rollback(): Promise<void> {
+        throw new Error('Drive health is read-only and cannot be rolled back.');
+    }
 }
