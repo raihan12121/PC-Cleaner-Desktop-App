@@ -2,7 +2,16 @@ import { afterEach, describe, expect, it } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { assertScanId, assertScanItems, assertSafeFile, isPathWithin, quotePowerShell } from './validation';
+import {
+    assertScanId,
+    assertScanItems,
+    assertSafeFile,
+    assertSafeFileInRoots,
+    isPathWithin,
+    quotePowerShell,
+    assertExistingDirectory
+} from './validation';
+import { ScanItem } from './modules/BaseModule';
 
 const temporaryPaths: string[] = [];
 afterEach(async () => {
@@ -14,6 +23,21 @@ describe('IPC validation', () => {
         expect(() => assertScanItems([{ id: '1', path: 'C:\\Temp\\a', name: 'a', size: 0, category: 'Temp', selected: true }])).not.toThrow();
         expect(() => assertScanItems([{ id: '1', path: 'x', name: 'x', size: -1, category: 'Temp', selected: true }])).toThrow();
         expect(() => assertScanItems(null)).toThrow();
+    });
+
+    it('accepts large item sets beyond 10,000 items', () => {
+        const largeSet: ScanItem[] = [];
+        for (let i = 0; i < 35000; i++) {
+            largeSet.push({
+                id: `item_${i}`,
+                path: `C:\\Temp\\file_${i}.tmp`,
+                name: `file_${i}.tmp`,
+                size: 1024,
+                category: 'Temp',
+                selected: true
+            });
+        }
+        expect(() => assertScanItems(largeSet)).not.toThrow();
     });
 
     it('requires a positive safe integer scan id', () => {
@@ -38,6 +62,23 @@ describe('IPC validation', () => {
         await expect(assertSafeFile(root, root)).rejects.toThrow();
     });
 
+    it('supports assertSafeFileInRoots with multiple root directories', async () => {
+        const root1 = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'pc-cleaner-root1-'));
+        const root2 = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'pc-cleaner-root2-'));
+        temporaryPaths.push(root1, root2);
+
+        const file1 = path.join(root1, 'file1.txt');
+        const file2 = path.join(root2, 'file2.txt');
+        await fs.promises.writeFile(file1, 'data1');
+        await fs.promises.writeFile(file2, 'data2');
+
+        await expect(assertSafeFileInRoots(file1, [root1, root2])).resolves.toBeUndefined();
+        await expect(assertSafeFileInRoots(file2, [root1, root2])).resolves.toBeUndefined();
+
+        const outside = path.join(os.tmpdir(), 'outside.txt');
+        await expect(assertSafeFileInRoots(outside, [root1, root2])).rejects.toThrow();
+    });
+
     it('escapes PowerShell single-quoted strings', () => {
         expect(quotePowerShell("O'Reilly")).toBe("'O''Reilly'");
     });
@@ -45,7 +86,6 @@ describe('IPC validation', () => {
     it('validates existing directories and rejects invalid paths', async () => {
         const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'pc-cleaner-dir-'));
         temporaryPaths.push(root);
-        const { assertExistingDirectory } = await import('./validation');
         expect(() => assertExistingDirectory(root)).not.toThrow();
         expect(() => assertExistingDirectory(path.join(root, 'nonexistent'))).toThrow();
         expect(() => assertExistingDirectory('relative/path')).toThrow();

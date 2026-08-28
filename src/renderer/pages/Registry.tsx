@@ -40,6 +40,9 @@ const Registry: React.FC = () => {
             setRollbackMessage(null);
             try {
                 const result = await window.api.invoke(IPC_CHANNELS.REGISTRY_CLEAN, selected, scanData.scanId);
+                if (result && result.error) {
+                    throw new Error(result.error);
+                }
                 setCleanSummary(result);
                 setScanData({
                     ...scanData,

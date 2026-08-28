@@ -50,11 +50,14 @@ const DuplicateFinder: React.FC = () => {
             setCleaning(true);
             try {
                 const result = await window.api.invoke(IPC_CHANNELS.DUPLICATE_CLEAN, selected, scanData.scanId);
+                if (result && result.error) {
+                    throw new Error(result.error);
+                }
                 setCleanSummary(result);
                 setScanData({
                     ...scanData,
                     items: scanData.items.filter(item => !selected.find(s => s.id === item.id)),
-                    totalBytes: scanData.totalBytes - result.bytesFreed
+                    totalBytes: Math.max(0, scanData.totalBytes - (result.bytesFreed || 0))
                 });
             } catch (e: any) {
                 alert('Deduplication failed: ' + (e?.message || e));

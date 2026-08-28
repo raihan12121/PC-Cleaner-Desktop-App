@@ -17,6 +17,8 @@ export interface CleanResult {
     itemsRemoved: number;
     bytesFreed: number;
     success: boolean;
+    skippedCount?: number;
+    removedItemIds?: string[];
     error?: string;
 }
 
@@ -37,9 +39,10 @@ export abstract class BaseModule {
      * Performs the cleanup action on the provided items
      * No deletion should happen without being passed explicitly here
      * @param items The specific items chosen by the user to clean
+     * @param options Optional cleanup options (e.g. secure shredding)
      * @returns Stats about the cleanup operation
      */
-    abstract clean(items: ScanItem[]): Promise<CleanResult>;
+    abstract clean(items: ScanItem[], options?: any): Promise<CleanResult>;
 
     /**
      * Restores the system to the state before the last clean() operation

@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { ScanItem } from './modules/BaseModule';
 
-const MAX_SCAN_ITEMS = 10000;
+const MAX_SCAN_ITEMS = 500000;
 
 export function assertScanItems(value: unknown): asserts value is ScanItem[] {
     if (!Array.isArray(value) || value.length > MAX_SCAN_ITEMS) {
@@ -34,6 +34,20 @@ export function canonicalizePath(p: string): string {
     try {
         if (fs.existsSync(resolved)) {
             resolved = fs.realpathSync.native ? fs.realpathSync.native(resolved) : fs.realpathSync(resolved);
+        } else {
+            // Expand 8.3 short paths (e.g. MUHAMM~1) by resolving nearest existing ancestor
+            let current = resolved;
+            let suffix = '';
+            while (current && !fs.existsSync(current)) {
+                const parent = path.dirname(current);
+                if (parent === current) break;
+                suffix = path.join(path.basename(current), suffix);
+                current = parent;
+            }
+            if (fs.existsSync(current)) {
+                const realParent = fs.realpathSync.native ? fs.realpathSync.native(current) : fs.realpathSync(current);
+                resolved = path.join(realParent, suffix);
+            }
         }
     } catch {
         // fallback
@@ -50,6 +64,13 @@ export function isPathWithin(child: string, parent: string): boolean {
 
 export async function assertSafeFile(filePath: string, allowedRoot: string): Promise<void> {
     if (!isPathWithin(filePath, allowedRoot)) throw new Error('Path is outside the permitted cleanup directory.');
+    const stat = await fs.promises.lstat(filePath);
+    if (!stat.isFile()) throw new Error('Only regular files can be cleaned.');
+}
+
+export async function assertSafeFileInRoots(filePath: string, allowedRoots: string[]): Promise<void> {
+    const isInside = allowedRoots.some(root => isPathWithin(filePath, root));
+    if (!isInside) throw new Error('Path is outside the permitted cleanup directories.');
     const stat = await fs.promises.lstat(filePath);
     if (!stat.isFile()) throw new Error('Only regular files can be cleaned.');
 }

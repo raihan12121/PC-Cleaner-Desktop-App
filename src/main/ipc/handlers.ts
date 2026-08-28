@@ -76,7 +76,17 @@ export function registerIpcHandlers() {
     ipcMain.handle(IPC_CHANNELS.DB_DELETE_SCHEDULE, async (_, module: unknown) => { if (typeof module !== 'string' || !['DiskCleaner', 'PrivacyCleaner'].includes(module)) return { error: 'Invalid schedule.' }; deleteSchedule(module); await scheduler.loadSchedules(); return { success: true }; });
 
     ipcMain.handle(IPC_CHANNELS.DISK_SCAN, async () => { try { const result = await diskCleaner.scan(); const scanId = logScanResult({ module: diskCleaner.moduleName, itemsFound: result.items.length, bytesFreed: result.totalBytes }); registerScan(diskCleaner.moduleName, result.items, scanId); return { ...result, scanId }; } catch (e) { return { error: String(e) }; } });
-    ipcMain.handle(IPC_CHANNELS.DISK_CLEAN, async (_, items: unknown, scanId: unknown) => { try { const result = await diskCleaner.clean(validateCleanup(diskCleaner.moduleName, items, scanId)); logCleanHistory({ scanId: scanId as number, itemsRemoved: result.itemsRemoved, bytesFreed: result.bytesFreed }); return result; } catch (e) { return { error: String(e) }; } });
+    ipcMain.handle(IPC_CHANNELS.DISK_CLEAN, async (_, items: unknown, scanId: unknown, options?: unknown) => {
+        try {
+            const cleanOptions = (options && typeof options === 'object') ? (options as { shred?: boolean }) : undefined;
+            const validatedItems = validateCleanup(diskCleaner.moduleName, items, scanId);
+            const result = await diskCleaner.clean(validatedItems, cleanOptions);
+            logCleanHistory({ scanId: scanId as number, itemsRemoved: result.itemsRemoved, bytesFreed: result.bytesFreed });
+            return result;
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
     ipcMain.handle(IPC_CHANNELS.DUPLICATE_SCAN, async (_, options: unknown) => { try { if (options !== undefined && (!options || typeof options !== 'object' || typeof (options as { directory?: unknown }).directory !== 'string')) return { error: 'Invalid duplicate scan options.' }; if (options && typeof (options as { directory?: unknown }).directory === 'string') assertExistingDirectory((options as { directory: string }).directory); const result = await duplicateFinder.scan(options as { directory: string } | undefined); const scanId = logScanResult({ module: duplicateFinder.moduleName, itemsFound: result.items.length, bytesFreed: result.totalBytes }); registerScan(duplicateFinder.moduleName, result.items, scanId); return { ...result, scanId }; } catch (e) { return { error: String(e) }; } });
     ipcMain.handle(IPC_CHANNELS.DUPLICATE_CLEAN, async (_, items: unknown, scanId: unknown) => { try { const result = await duplicateFinder.clean(validateCleanup(duplicateFinder.moduleName, items, scanId)); logCleanHistory({ scanId: scanId as number, itemsRemoved: result.itemsRemoved, bytesFreed: result.bytesFreed }); return result; } catch (e) { return { error: String(e) }; } });
     ipcMain.handle(IPC_CHANNELS.REGISTRY_SCAN, async () => { try { const result = await registryCleaner.scan(); const scanId = logScanResult({ module: registryCleaner.moduleName, itemsFound: result.items.length, bytesFreed: result.totalBytes }); registerScan(registryCleaner.moduleName, result.items, scanId); return { ...result, scanId }; } catch (e) { return { error: String(e) }; } });
