@@ -17,6 +17,7 @@ export const IPC_CHANNELS = {
     // Disk Cleaner Module
     DISK_SCAN: 'disk:scan',
     DISK_CLEAN: 'disk:clean',
+    CLEAN_PROGRESS: 'disk:clean:progress',
 
     // Duplicate Finder Module
     DUPLICATE_SCAN: 'duplicate:scan',

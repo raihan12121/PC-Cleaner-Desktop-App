@@ -76,11 +76,18 @@ export function registerIpcHandlers() {
     ipcMain.handle(IPC_CHANNELS.DB_DELETE_SCHEDULE, async (_, module: unknown) => { if (typeof module !== 'string' || !['DiskCleaner', 'PrivacyCleaner'].includes(module)) return { error: 'Invalid schedule.' }; deleteSchedule(module); await scheduler.loadSchedules(); return { success: true }; });
 
     ipcMain.handle(IPC_CHANNELS.DISK_SCAN, async () => { try { const result = await diskCleaner.scan(); const scanId = logScanResult({ module: diskCleaner.moduleName, itemsFound: result.items.length, bytesFreed: result.totalBytes }); registerScan(diskCleaner.moduleName, result.items, scanId); return { ...result, scanId }; } catch (e) { return { error: String(e) }; } });
-    ipcMain.handle(IPC_CHANNELS.DISK_CLEAN, async (_, items: unknown, scanId: unknown, options?: unknown) => {
+    ipcMain.handle(IPC_CHANNELS.DISK_CLEAN, async (event, items: unknown, scanId: unknown, options?: unknown) => {
         try {
             const cleanOptions = (options && typeof options === 'object') ? (options as { shred?: boolean }) : undefined;
             const validatedItems = validateCleanup(diskCleaner.moduleName, items, scanId);
-            const result = await diskCleaner.clean(validatedItems, cleanOptions);
+            const result = await diskCleaner.clean(validatedItems, {
+                ...cleanOptions,
+                onProgress: (progress) => {
+                    if (!event.sender.isDestroyed()) {
+                        event.sender.send(IPC_CHANNELS.CLEAN_PROGRESS, progress);
+                    }
+                }
+            });
             logCleanHistory({ scanId: scanId as number, itemsRemoved: result.itemsRemoved, bytesFreed: result.bytesFreed });
             return result;
         } catch (e) {

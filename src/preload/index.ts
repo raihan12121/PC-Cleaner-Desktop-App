@@ -16,6 +16,17 @@ const api = {
             return ipcRenderer.invoke(channel, ...args);
         }
         throw new Error(`Unauthorized IPC channel: ${channel}`);
+    },
+
+    // Safe event listener for streaming progress updates
+    on: (channel: string, callback: (...args: any[]) => void) => {
+        const validChannels = Object.values(IPC_CHANNELS);
+        if (!(validChannels as string[]).includes(channel)) {
+            throw new Error(`Unauthorized IPC channel: ${channel}`);
+        }
+        const subscription = (_event: Electron.IpcRendererEvent, ...args: any[]) => callback(...args);
+        ipcRenderer.on(channel, subscription);
+        return () => ipcRenderer.removeListener(channel, subscription);
     }
 };
 

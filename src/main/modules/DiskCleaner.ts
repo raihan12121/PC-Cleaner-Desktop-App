@@ -10,6 +10,26 @@ import { assertSafeFileInRoots, canonicalizePath } from '../validation';
 
 const execFileAsync = promisify(execFile);
 
+export interface CleanProgress {
+    processed: number;
+    total: number;
+    percentage: number;
+    currentItemName?: string;
+    currentPath?: string;
+    currentCategory?: string;
+    bytesFreed: number;
+    totalBytes: number;
+    remainingItems: number;
+    remainingBytes: number;
+    itemsRemoved: number;
+    skippedCount: number;
+}
+
+export interface DiskCleanOptions {
+    shred?: boolean;
+    onProgress?: (progress: CleanProgress) => void;
+}
+
 export class DiskCleaner extends BaseModule {
     readonly moduleName = 'DiskCleaner';
 
@@ -301,13 +321,29 @@ export class DiskCleaner extends BaseModule {
         }
     }
 
-    async clean(items: ScanItem[], options?: { shred?: boolean }): Promise<CleanResult> {
+    async clean(items: ScanItem[], options?: DiskCleanOptions): Promise<CleanResult> {
         let itemsRemoved = 0;
         let bytesFreed = 0;
         let skippedCount = 0;
+        let processed = 0;
+        const total = items.length;
+        const totalBytes = items.reduce((acc, i) => acc + (i.size || 0), 0);
         const removedItemIds: string[] = [];
         const allowedRoots = this.getAllowedRoots();
         const shred = !!options?.shred;
+
+        // Send initial 0% progress
+        options?.onProgress?.({
+            processed: 0,
+            total,
+            percentage: 0,
+            bytesFreed: 0,
+            totalBytes,
+            remainingItems: total,
+            remainingBytes: totalBytes,
+            itemsRemoved: 0,
+            skippedCount: 0
+        });
 
         // Separate Recycle Bin from normal files
         const normalFiles: ScanItem[] = [];
@@ -341,10 +377,25 @@ export class DiskCleaner extends BaseModule {
                 console.warn('Failed to empty Recycle Bin:', e);
                 skippedCount++;
             }
+            processed++;
+            options?.onProgress?.({
+                processed,
+                total,
+                percentage: total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 100,
+                currentItemName: 'Windows Recycle Bin',
+                currentPath: 'RecycleBin://',
+                currentCategory: 'Recycle Bin',
+                bytesFreed,
+                totalBytes,
+                remainingItems: Math.max(0, total - processed),
+                remainingBytes: Math.max(0, totalBytes - bytesFreed),
+                itemsRemoved,
+                skippedCount
+            });
         }
 
-        // Process files concurrently in batches of 50
-        const CONCURRENCY = 50;
+        // Process files concurrently in batches of 25 for smooth progress updates
+        const CONCURRENCY = 25;
         const touchedDirs = new Set<string>();
 
         for (let i = 0; i < normalFiles.length; i += CONCURRENCY) {
@@ -366,7 +417,37 @@ export class DiskCleaner extends BaseModule {
                     skippedCount++;
                 }
             }
+
+            processed += batch.length;
+            const lastItem = batch[batch.length - 1];
+            options?.onProgress?.({
+                processed,
+                total,
+                percentage: total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 100,
+                currentItemName: lastItem?.name,
+                currentPath: lastItem?.path,
+                currentCategory: lastItem?.category,
+                bytesFreed,
+                totalBytes,
+                remainingItems: Math.max(0, total - processed),
+                remainingBytes: Math.max(0, totalBytes - bytesFreed),
+                itemsRemoved,
+                skippedCount
+            });
         }
+
+        // Final 100% progress
+        options?.onProgress?.({
+            processed: total,
+            total,
+            percentage: 100,
+            bytesFreed,
+            totalBytes,
+            remainingItems: 0,
+            remainingBytes: 0,
+            itemsRemoved,
+            skippedCount
+        });
 
         // Prune empty subdirectories in cleaned locations asynchronously in the background
         const pruneRoots = [app.getPath('temp'), os.tmpdir()];
