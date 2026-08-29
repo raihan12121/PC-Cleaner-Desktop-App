@@ -1,6 +1,23 @@
 # PC Cleaner & Optimization Application
 
+[![Latest Release](https://img.shields.io/github/v/release/raihan12121/PC-Cleaner-Desktop-App?style=for-the-badge&color=00c853&logo=windows&logoColor=white)](https://github.com/raihan12121/PC-Cleaner-Desktop-App/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20x64-blue?style=for-the-badge&logo=windows)](https://github.com/raihan12121/PC-Cleaner-Desktop-App/releases/latest)
+
 A modern, high-performance desktop application built with **Electron, React, and TypeScript** designed to clean, monitor, and optimize your operating system. It features disk cleanup, registry cleaning (Windows-specific), duplicate file finding, startup management, memory optimization, system monitoring, and automated scheduling.
+
+---
+
+## 💾 Download for Windows
+
+To install and use PC Cleaner on your computer:
+
+1. **[Click here to download the latest Windows Installer (v1.0.4)](https://github.com/raihan12121/PC-Cleaner-Desktop-App/releases/latest/download/PC.Cleaner-1.0.4.Setup.exe)**.
+2. Double-click the downloaded **`PC Cleaner-1.0.4 Setup.exe`** file.
+3. The installer will automatically set up PC Cleaner and create a desktop shortcut.
+4. Launch **PC Cleaner** and click **Quick Clean** or **Optimize** to start cleaning!
+
+> **Note**: If Windows Defender / SmartScreen shows *"Windows protected your PC"*, click **More info** ➔ **Run anyway** (standard for open-source apps without paid EV code-signing certificates).
 
 ---
 
