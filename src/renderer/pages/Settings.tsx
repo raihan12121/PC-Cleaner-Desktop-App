@@ -35,27 +35,30 @@ const Settings: React.FC = () => {
     };
 
     return (
-        <div className="p-8 h-full flex flex-col pt-12 overflow-y-auto">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
-                <p className="text-slate-400">Configure application behavior, scheduling, and notifications.</p>
+        <div className="p-8 h-full flex flex-col overflow-y-auto custom-scrollbar">
+            {/* Header */}
+            <div className="mb-6 shrink-0">
+                <h1 className="text-2xl font-bold text-white tracking-tight">System Settings</h1>
+                <p className="text-[13px] text-[#86868B] mt-0.5">Preferences, automated maintenance tasks, and diagnostic telemetry</p>
             </div>
 
-            <div className="space-y-6 max-w-4xl">
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6">
-                    <h3 className="text-slate-200 text-lg font-semibold mb-6 border-b border-slate-800 pb-2">Automation & Schedules</h3>
+            <div className="space-y-5 max-w-3xl">
+                {/* Automation & Schedules */}
+                <div className="apple-glass rounded-2xl p-5">
+                    <div className="text-[11px] font-bold text-[#86868B] uppercase tracking-wider mb-4 pb-2 border-b border-white/[0.06]">
+                        Automation & Background Maintenance
+                    </div>
 
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <div className="font-medium text-slate-300">Daily Quick Clean</div>
-                            <div className="text-sm text-slate-500">Automatically clean temp files and browser cache at 2:00 AM (Recycle Bin protected)</div>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer" aria-label="Enable daily quick clean">
-                            <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={scheduledScan}
-                                onChange={async () => {
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="mr-4">
+                                <div className="text-[13px] font-semibold text-white">Daily Automatic Maintenance</div>
+                                <div className="text-[11px] text-[#86868B] mt-0.5">
+                                    Silently purge system and user caches at 2:00 AM (Recycle Bin is safely excluded)
+                                </div>
+                            </div>
+                            <div
+                                onClick={async () => {
                                     const next = !scheduledScan;
                                     setScheduledScan(next);
                                     try {
@@ -64,65 +67,93 @@ const Settings: React.FC = () => {
                                         setScheduledScan(!next);
                                     }
                                 }}
-                            />
-                            <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
-                        </label>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="font-medium text-slate-300">S.M.A.R.T. Drive Alerts</div>
-                            <div className="text-sm text-slate-500">Notify me if drive health falls below safe levels</div>
+                                className={`w-10 h-6 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 ${
+                                    scheduledScan ? 'bg-[#30D158]' : 'bg-white/20'
+                                }`}
+                            >
+                                <div
+                                    className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ${
+                                        scheduledScan ? 'translate-x-4' : 'translate-x-0'
+                                    }`}
+                                />
+                            </div>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer" aria-label="Enable S.M.A.R.T. drive alerts">
-                            <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={smartAlerts}
-                                onChange={() => setSmartAlerts(!smartAlerts)}
-                            />
-                            <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
-                        </label>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
+                            <div className="mr-4">
+                                <div className="text-[13px] font-semibold text-white">S.M.A.R.T. Drive Health Watch</div>
+                                <div className="text-[11px] text-[#86868B] mt-0.5">
+                                    Display background notifications if storage device health drops below threshold
+                                </div>
+                            </div>
+                            <div
+                                onClick={() => setSmartAlerts(!smartAlerts)}
+                                className={`w-10 h-6 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 ${
+                                    smartAlerts ? 'bg-[#30D158]' : 'bg-white/20'
+                                }`}
+                            >
+                                <div
+                                    className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ${
+                                        smartAlerts ? 'translate-x-4' : 'translate-x-0'
+                                    }`}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6">
-                    <h3 className="text-slate-200 text-lg font-semibold mb-6 border-b border-slate-800 pb-2">Appearance</h3>
+                {/* Appearance */}
+                <div className="apple-glass rounded-2xl p-5">
+                    <div className="text-[11px] font-bold text-[#86868B] uppercase tracking-wider mb-4 pb-2 border-b border-white/[0.06]">
+                        Appearance
+                    </div>
 
                     <div className="flex items-center justify-between">
                         <div>
-                            <div className="font-medium text-slate-300">App Theme</div>
-                            <div className="text-sm text-slate-500">Choose between light, dark, or system default</div>
+                            <div className="text-[13px] font-semibold text-white">Color Interface Theme</div>
+                            <div className="text-[11px] text-[#86868B] mt-0.5">
+                                macOS Sequoia Frosted Graphite
+                            </div>
                         </div>
                         <select
                             value={theme}
                             onChange={(e) => setTheme(e.target.value)}
-                            className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none font-medium"
+                            className="bg-white/[0.06] border border-white/[0.1] text-white text-[12px] rounded-xl px-3 py-1.5 outline-none font-medium focus:border-[#0A84FF] transition-all cursor-pointer"
                         >
-                            <option>System Default</option>
-                            <option>Light</option>
-                            <option>Dark</option>
+                            <option value="Dark" className="bg-[#1C1C1E] text-white">Dark Mode (Graphite)</option>
+                            <option value="System" className="bg-[#1C1C1E] text-white">System Synchronized</option>
                         </select>
                     </div>
                 </div>
 
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6">
-                    <h3 className="text-rose-400 text-lg font-semibold mb-6 border-b border-slate-800 pb-2">Maintenance</h3>
+                {/* Maintenance & Reset */}
+                <div className="apple-glass rounded-2xl p-5 border border-[#FF453A]/20">
+                    <div className="text-[11px] font-bold text-[#FF453A] uppercase tracking-wider mb-4 pb-2 border-b border-white/[0.06]">
+                        Diagnostics & Storage Reset
+                    </div>
+
                     <div className="flex items-center justify-between">
-                        <div>
-                            <div className="font-medium text-slate-300">Reset Application Data</div>
-                            <div className="text-sm text-slate-500">Wipe all cleaning history and reset statistics to zero.</div>
+                        <div className="mr-4">
+                            <div className="text-[13px] font-semibold text-white">Reset Telemetry Database</div>
+                            <div className="text-[11px] text-[#86868B] mt-0.5">
+                                Clear stored cleanup logs and reset performance statistics back to baseline
+                            </div>
                         </div>
                         <button
                             onClick={handleReset}
-                            className="px-6 py-2 bg-rose-600/10 text-rose-500 border border-rose-600/20 hover:bg-rose-600 hover:text-white rounded-lg font-bold transition-all"
+                            className="px-4 py-2 bg-[#FF453A]/10 text-[#FF453A] border border-[#FF453A]/25 hover:bg-[#FF453A]/20 rounded-xl text-[12px] font-semibold transition-all shrink-0"
                         >
                             Reset Data
                         </button>
                     </div>
                 </div>
             </div>
-            {scheduleError && <div className="max-w-4xl rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400 mt-4">{scheduleError}</div>}
+
+            {scheduleError && (
+                <div className="max-w-3xl rounded-xl border border-[#FF453A]/25 bg-[#FF453A]/10 p-3.5 text-[#FF453A] text-[13px] mt-4">
+                    {scheduleError}
+                </div>
+            )}
         </div>
     );
 };

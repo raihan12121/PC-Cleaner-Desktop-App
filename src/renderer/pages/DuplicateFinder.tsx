@@ -33,7 +33,6 @@ const DuplicateFinder: React.FC = () => {
         const selected = scanData.items.filter(i => i.selected);
         if (selected.length === 0) return;
 
-        // Group check to warn if user selected 100% of copies in a group
         const groupMap = new Map<string, typeof scanData.items>();
         for (const item of scanData.items) {
             const list = groupMap.get(item.category) || [];
@@ -100,7 +99,6 @@ const DuplicateFinder: React.FC = () => {
         });
     };
 
-    // Group items by category
     const groupedItems: Array<{ groupName: string; items: typeof scanData.items }> = [];
     if (scanData && scanData.items) {
         const map = new Map<string, typeof scanData.items>();
@@ -114,110 +112,156 @@ const DuplicateFinder: React.FC = () => {
         }
     }
 
+    const selectedCount = scanData?.items.filter(i => i.selected).length || 0;
+
     return (
-        <div className="p-8 h-full flex flex-col pt-12 overflow-y-auto">
-            <div className="flex justify-between items-start mb-8">
+        <div className="p-8 h-full flex flex-col overflow-y-auto custom-scrollbar">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6 shrink-0">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Duplicate Finder</h1>
-                    <p className="text-slate-400">Detect identical files using SHA-256 binary verification.</p>
+                    <h1 className="text-2xl font-bold text-white tracking-tight">Duplicate Files</h1>
+                    <p className="text-[13px] text-[#86868B] mt-0.5">Detect redundant copies across storage using cryptographic binary hashing</p>
                 </div>
-                <div className="flex space-x-3">
+                <div className="flex items-center space-x-3">
                     <button
                         onClick={handleRestore}
                         disabled={scanning || cleaning || restoring}
-                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition-all border border-slate-700 text-xs"
+                        className="apple-btn-secondary px-3.5 py-2 rounded-xl text-[12px] font-semibold disabled:opacity-50"
                     >
                         {restoring ? 'Restoring...' : 'Restore Backups'}
                     </button>
                     <button
                         onClick={handleScan}
                         disabled={scanning || cleaning}
-                        className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all border border-slate-700"
+                        className="apple-btn-secondary px-4 py-2 rounded-xl text-[13px] font-semibold flex items-center space-x-2 disabled:opacity-50"
                     >
-                        {scanning ? 'Analyzing...' : 'Scan Downloads'}
+                        {scanning ? (
+                            <>
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span>Scanning...</span>
+                            </>
+                        ) : (
+                            <span>Scan Downloads</span>
+                        )}
                     </button>
                     <button
                         onClick={handleClean}
-                        disabled={!scanData || scanData.items.filter(i => i.selected).length === 0 || cleaning}
-                        className="px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-cyan-900/20"
+                        disabled={!scanData || selectedCount === 0 || cleaning}
+                        className="apple-btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold flex items-center space-x-2 disabled:opacity-50 shadow-md shadow-blue-500/20"
                     >
-                        {cleaning ? 'Removing...' : 'Delete Selected'}
+                        <span>{cleaning ? 'Removing...' : `Delete Selected (${selectedCount})`}</span>
                     </button>
                 </div>
             </div>
 
             {restoreStatus && (
-                <div className={`mb-6 p-4 rounded-xl border ${restoreStatus.includes('failed') ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
-                    {restoreStatus}
+                <div className={`mb-4 p-3.5 rounded-xl text-[13px] flex items-center space-x-2 border ${
+                    restoreStatus.includes('failed')
+                        ? 'bg-[#FF453A]/10 border-[#FF453A]/25 text-[#FF453A]'
+                        : 'bg-[#30D158]/10 border-[#30D158]/25 text-[#30D158]'
+                }`}>
+                    <span>{restoreStatus}</span>
                 </div>
             )}
 
             {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">
-                    Scan failed: {error}
+                <div className="mb-4 p-3.5 bg-[#FF453A]/10 border border-[#FF453A]/25 rounded-xl text-[#FF453A] text-[13px] flex items-center space-x-2">
+                    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span>Scan failed: {error}</span>
                 </div>
             )}
 
             {cleanSummary && (
-                <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 flex items-center justify-between">
+                <div className="mb-4 p-3.5 bg-[#30D158]/10 border border-[#30D158]/25 rounded-xl text-[#30D158] text-[13px] flex items-center justify-between">
                     <div>
-                        <div className="font-bold">Cleanup Complete</div>
-                        <div className="text-xs text-emerald-500 mt-0.5">Removed {cleanSummary.itemsRemoved} duplicate files and safely freed {formatBytes(cleanSummary.bytesFreed)}.</div>
+                        <span className="font-semibold">Duplicates Removed: </span>
+                        <span>Freed {formatBytes(cleanSummary.bytesFreed)} across {cleanSummary.itemsRemoved} redundant files.</span>
                     </div>
+                    <span className="text-[11px] text-white/70">Reconstructable via rollback</span>
                 </div>
             )}
 
-            {/* Results Table */}
-            <div className="flex-1 bg-slate-900/60 border border-slate-800 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm">
+            {/* Content Container */}
+            <div className="flex-1 apple-glass rounded-2xl overflow-hidden flex flex-col min-h-0">
                 {!scanData && !scanning && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
-                        <svg className="w-12 h-12 mb-4 opacity-50 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>
-                        <p>Click "Scan Downloads" to analyze disk blocks for exact duplicates.</p>
+                    <div className="flex-1 flex flex-col items-center justify-center text-[#86868B] p-8">
+                        <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-4">
+                            <svg className="w-8 h-8 text-[#0A84FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                            </svg>
+                        </div>
+                        <h2 className="text-[17px] font-semibold text-white mb-1">Find Duplicate Files</h2>
+                        <p className="text-[13px] text-[#86868B] max-w-sm text-center">
+                            Scan user directories to locate redundant clones and free valuable storage space.
+                        </p>
                     </div>
                 )}
 
                 {scanning && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-cyan-400">
-                        <div className="w-10 h-10 border-4 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin mb-4"></div>
-                        <p className="animate-pulse font-bold tracking-widest uppercase text-xs">Computing Binary Hashes...</p>
+                    <div className="flex-1 flex flex-col items-center justify-center text-[#86868B]">
+                        <div className="w-10 h-10 border-2 border-white/10 border-t-[#0A84FF] rounded-full animate-spin mb-3" />
+                        <p className="text-[14px] font-semibold text-white">Calculating File Checksums...</p>
+                        <p className="text-[12px] text-[#86868B] mt-1">Comparing SHA-256 binary fingerprints</p>
                     </div>
                 )}
 
                 {scanData && !scanning && (
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
                         {scanData.items.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-slate-500">No duplicates found in Downloads folder.</div>
+                            <div className="h-full flex flex-col items-center justify-center text-[#30D158]">
+                                <svg className="w-10 h-10 mb-2 opacity-80" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <p className="text-[13px] font-semibold">No Duplicates Found</p>
+                                <p className="text-[11px] text-[#86868B] mt-0.5">Your downloads and documents are organized.</p>
+                            </div>
                         ) : (
-                            <div className="divide-y divide-slate-800">
+                            <div className="space-y-4">
                                 {groupedItems.map(group => (
-                                    <div key={group.groupName} className="p-4">
-                                        <div className="flex items-center justify-between mb-2 px-2">
-                                            <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">{group.groupName}</span>
-                                            <span className="text-[10px] text-slate-500 font-mono">{group.items.length} copies</span>
+                                    <div key={group.groupName} className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+                                        <div className="flex items-center justify-between mb-2.5 px-1">
+                                            <span className="text-[11px] font-bold text-[#0A84FF] uppercase tracking-wider">{group.groupName}</span>
+                                            <span className="text-[10px] text-[#86868B] font-mono">{group.items.length} identical copies</span>
                                         </div>
                                         <div className="space-y-1">
                                             {group.items.map(item => (
                                                 <div
                                                     key={item.id}
                                                     onClick={() => toggleItem(item.id)}
-                                                    className={`flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-800/60 cursor-pointer transition-colors ${item.selected ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-slate-950/40'}`}
+                                                    className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all border ${
+                                                        item.selected
+                                                            ? 'bg-[#0A84FF]/10 border-[#0A84FF]/30'
+                                                            : 'bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.05]'
+                                                    }`}
                                                 >
                                                     <div className="flex items-center space-x-3 overflow-hidden min-w-0">
-                                                        <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 ${item.selected ? 'bg-cyan-500 border-cyan-400' : 'border-slate-700 bg-slate-900'}`}>
-                                                            {item.selected && (
-                                                                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                                </svg>
-                                                            )}
+                                                        <div className="relative flex items-center justify-center w-4 h-4 shrink-0">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={item.selected}
+                                                                onChange={(e) => { e.stopPropagation(); toggleItem(item.id); }}
+                                                                className="w-full h-full opacity-0 absolute z-10 cursor-pointer"
+                                                            />
+                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                                                                item.selected ? 'bg-[#0A84FF] border-[#0A84FF]' : 'border-white/30 bg-white/[0.05]'
+                                                            }`}>
+                                                                {item.selected && (
+                                                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                    </svg>
+                                                                )}
+                                                            </div>
                                                         </div>
+
                                                         <div className="truncate min-w-0">
-                                                            <div className="text-sm font-semibold text-slate-200 truncate">{item.name}</div>
-                                                            <div className="text-xs text-slate-500 font-mono truncate">{item.path}</div>
+                                                            <div className="text-[13px] font-semibold text-white truncate">{item.name}</div>
+                                                            <div className="text-[11px] text-[#86868B] font-mono truncate mt-0.5" title={item.path}>{item.path}</div>
                                                         </div>
                                                     </div>
-                                                    <div className="text-right shrink-0 pl-4 font-mono text-xs text-slate-400">
+
+                                                    <div className="text-right shrink-0 pl-3 font-mono text-[12px] text-[#86868B]">
                                                         {formatBytes(item.size)}
                                                     </div>
                                                 </div>

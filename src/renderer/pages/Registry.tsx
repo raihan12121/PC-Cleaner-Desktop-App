@@ -76,104 +76,151 @@ const Registry: React.FC = () => {
         });
     };
 
+    const selectedCount = scanData?.items.filter(i => i.selected).length || 0;
+
     return (
-        <div className="p-8 h-full flex flex-col pt-12 overflow-y-auto">
-            <div className="flex justify-between items-start mb-8">
+        <div className="p-8 h-full flex flex-col overflow-y-auto custom-scrollbar">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6 shrink-0">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Registry Cleaner</h1>
-                    <p className="text-slate-400">Optimize system database by removing orphaned application entries.</p>
+                    <h1 className="text-2xl font-bold text-white tracking-tight">System Integrity & Registry</h1>
+                    <p className="text-[13px] text-[#86868B] mt-0.5">Repair orphaned application references and invalid system entries</p>
                 </div>
-                <div className="flex space-x-3">
+                <div className="flex items-center space-x-3">
                     <button
                         onClick={handleRollback}
                         disabled={scanning || cleaning || rollingBack}
-                        className="px-4 py-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition-all border border-slate-700 text-sm"
+                        className="apple-btn-secondary px-3.5 py-2 rounded-xl text-[12px] font-semibold disabled:opacity-50"
                     >
                         {rollingBack ? 'Restoring...' : 'Restore Backup'}
                     </button>
                     <button
                         onClick={handleScan}
                         disabled={scanning || cleaning}
-                        className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all border border-slate-700"
+                        className="apple-btn-secondary px-4 py-2 rounded-xl text-[13px] font-semibold flex items-center space-x-2 disabled:opacity-50"
                     >
-                        {scanning ? 'Analyzing Hive...' : 'Scan Registry'}
+                        {scanning ? (
+                            <>
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span>Scanning...</span>
+                            </>
+                        ) : (
+                            <span>Scan Registry</span>
+                        )}
                     </button>
                     <button
                         onClick={handleClean}
-                        disabled={!scanData || scanData.items.filter(i => i.selected).length === 0 || cleaning}
-                        className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20"
+                        disabled={!scanData || selectedCount === 0 || cleaning}
+                        className="apple-btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold flex items-center space-x-2 disabled:opacity-50 shadow-md shadow-blue-500/20"
                     >
-                        {cleaning ? 'Optimizing...' : 'Fix Selected'}
+                        <span>{cleaning ? 'Repairing...' : `Repair (${selectedCount})`}</span>
                     </button>
                 </div>
             </div>
 
             {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">
-                    Scan failed: {error}
+                <div className="mb-4 p-3.5 bg-[#FF453A]/10 border border-[#FF453A]/25 rounded-xl text-[#FF453A] text-[13px] flex items-center space-x-2">
+                    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span>Scan error: {error}</span>
                 </div>
             )}
 
             {rollbackMessage && (
-                <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-300">
-                    {rollbackMessage}
+                <div className="mb-4 p-3.5 bg-[#0A84FF]/10 border border-[#0A84FF]/25 rounded-xl text-[#0A84FF] text-[13px] flex items-center space-x-2">
+                    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span>{rollbackMessage}</span>
                 </div>
             )}
 
             {cleanSummary && (
-                <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl animate-in fade-in slide-in-from-top-4">
-                    <div className="font-bold text-green-400 text-lg">Registry Optimized</div>
-                    <div className="text-sm text-slate-400">Successfully handled {cleanSummary.itemsRemoved} invalid entries.</div>
+                <div className="mb-4 p-3.5 bg-[#30D158]/10 border border-[#30D158]/25 rounded-xl text-[#30D158] text-[13px] flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>Successfully cleaned {cleanSummary.itemsRemoved} orphaned registry items.</span>
+                    </div>
+                    <span className="text-[11px] font-medium text-white/70">Automatic rollback snapshot created</span>
                 </div>
             )}
 
-            <div className="flex-1 bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden flex flex-col">
+            {/* Content Container */}
+            <div className="flex-1 apple-glass rounded-2xl overflow-hidden flex flex-col min-h-0">
                 {!scanData && !scanning && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
-                        <svg className="w-16 h-16 mb-4 opacity-20" width="64" height="64" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                        </svg>
-                        <p className="text-lg font-medium text-center px-8">Deep scan of the Windows Registry for orphaned data<br /><span className="text-sm text-slate-500 font-normal">This process is safe and includes automatic backups.</span></p>
+                    <div className="flex-1 flex flex-col items-center justify-center text-[#86868B] p-8">
+                        <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-4">
+                            <svg className="w-8 h-8 text-[#0A84FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                            </svg>
+                        </div>
+                        <h2 className="text-[17px] font-semibold text-white mb-1">Audit Registry Integrity</h2>
+                        <p className="text-[13px] text-[#86868B] max-w-sm text-center">
+                            Locate orphaned uninstall strings and missing file associations with automatic safe backups.
+                        </p>
                     </div>
                 )}
 
                 {scanning && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-blue-400">
-                        <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-400 rounded-full animate-spin mb-4"></div>
-                        <p className="animate-pulse font-bold tracking-widest uppercase text-xs">Accessing Registry Hives...</p>
+                    <div className="flex-1 flex flex-col items-center justify-center text-[#86868B]">
+                        <div className="w-10 h-10 border-2 border-white/10 border-t-[#0A84FF] rounded-full animate-spin mb-3" />
+                        <p className="text-[14px] font-semibold text-white">Inspecting Windows Registry Hives...</p>
+                        <p className="text-[12px] text-[#86868B] mt-1">Cross-referencing disk binaries with registered paths</p>
                     </div>
                 )}
 
                 {scanData && !scanning && (
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
                         {scanData.items.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-slate-900/20">
-                                <svg className="w-12 h-12 mb-2 text-green-500/30" fill="currentColor" viewBox="0 0 20 20">
+                            <div className="h-full flex flex-col items-center justify-center text-[#30D158]">
+                                <svg className="w-10 h-10 mb-2 opacity-80" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                 </svg>
-                                <p className="font-bold text-green-500/50 uppercase tracking-widest text-[10px]">Database Clean</p>
+                                <p className="text-[13px] font-semibold">Registry is Clean</p>
+                                <p className="text-[11px] text-[#86868B] mt-0.5">No orphaned entries detected.</p>
                             </div>
                         ) : (
-                            <div className="p-4 space-y-2">
+                            <div className="space-y-1.5">
                                 {scanData.items.map(item => (
-                                    <button
-                                        type="button"
+                                    <div
                                         key={item.id}
                                         onClick={() => toggleItem(item.id)}
-                                        aria-pressed={item.selected}
-                                        className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between w-full text-left ${item.selected ? 'bg-blue-500/5 border-blue-500/30' : 'bg-slate-800/10 border-slate-800/50 hover:border-slate-700'}`}
+                                        className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.06] transition-all cursor-pointer group"
                                     >
-                                        <div className="flex items-center space-x-4 overflow-hidden">
-                                            <div className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center ${item.selected ? 'bg-blue-500 border-blue-400' : 'bg-slate-900 border-slate-700'}`}>
-                                                {item.selected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                        <div className="flex items-center space-x-3 overflow-hidden mr-3">
+                                            <div className="relative flex items-center justify-center w-4 h-4 shrink-0">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={item.selected}
+                                                    onChange={(e) => { e.stopPropagation(); toggleItem(item.id); }}
+                                                    className="w-full h-full opacity-0 absolute z-10 cursor-pointer"
+                                                />
+                                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                                                    item.selected
+                                                        ? 'bg-[#0A84FF] border-[#0A84FF]'
+                                                        : 'border-white/30 bg-white/[0.05] group-hover:border-white/50'
+                                                }`}>
+                                                    {item.selected && (
+                                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="overflow-hidden">
-                                                <div className="font-bold text-slate-200 truncate">{item.name}</div>
-                                                <div className="text-[10px] text-slate-500 font-mono truncate">{item.path}</div>
+
+                                            <div className="truncate">
+                                                <div className="text-[13px] font-semibold text-white truncate">{item.name}</div>
+                                                <div className="text-[11px] text-[#86868B] truncate font-mono mt-0.5" title={item.path}>{item.path}</div>
                                             </div>
                                         </div>
-                                        <div className="text-[10px] font-bold text-slate-400 px-2 py-1 bg-slate-800 rounded uppercase shrink-0 ml-4">{item.category}</div>
-                                    </button>
+
+                                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.06] text-[#86868B] font-medium shrink-0 uppercase">
+                                            {item.category}
+                                        </span>
+                                    </div>
                                 ))}
                             </div>
                         )}
