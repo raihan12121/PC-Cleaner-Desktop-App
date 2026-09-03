@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useIpc } from '../hooks/useIpc';
 import { IPC_CHANNELS } from '../../main/ipc/channels';
+import appLogo from '../assets/app-icon.png';
 
 const Settings: React.FC = () => {
     const { invoke: resetData } = useIpc(IPC_CHANNELS.DB_RESET);
@@ -146,6 +147,25 @@ const Settings: React.FC = () => {
                             Reset Data
                         </button>
                     </div>
+                </div>
+
+                {/* About PC Cleaner Card */}
+                <div className="apple-glass rounded-2xl p-5 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <img
+                            src={appLogo}
+                            alt="PC Cleaner"
+                            className="w-12 h-12 rounded-2xl shadow-lg shadow-blue-500/20 object-contain"
+                        />
+                        <div>
+                            <div className="text-[14px] font-bold text-white tracking-tight">PC Cleaner</div>
+                            <div className="text-[11px] text-[#86868B] mt-0.5">System Optimization & Maintenance Suite</div>
+                            <div className="text-[10px] text-white/40 mt-1 font-mono">Version 1.0.5 (Windows x64)</div>
+                        </div>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-[11px] font-medium text-[#30D158]">
+                        Up to date
+                    </span>
                 </div>
             </div>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, NavLink } from 'react-router-dom';
+import appLogo from './assets/app-icon.png';
 
 import Cleaner from './pages/Cleaner';
 import Dashboard from './pages/Dashboard';
@@ -66,11 +67,11 @@ const App: React.FC = () => {
                 <aside className="w-56 bg-[#18181B]/80 backdrop-blur-2xl border-r border-white/[0.06] flex flex-col shrink-0 z-20">
                     {/* App Header Branding with Drag Region */}
                     <div className="pt-4 px-5 pb-3 flex items-center space-x-2.5 app-region-drag">
-                        <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#0A84FF] to-[#AF52DE] p-0.5 shadow-md shadow-blue-500/20 flex items-center justify-center app-region-no-drag">
-                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        </div>
+                        <img
+                            src={appLogo}
+                            alt="PC Cleaner Logo"
+                            className="w-8 h-8 rounded-xl object-contain shadow-md shadow-blue-500/25 app-region-no-drag"
+                        />
                         <div className="app-region-no-drag">
                             <h1 className="text-[13px] font-bold text-white tracking-tight leading-none">PC Cleaner</h1>
                             <span className="text-[10px] text-[#86868B] font-medium">System Suite</span>
