@@ -29,7 +29,7 @@ const config: ForgeConfig = {
   ],
   hooks: {
     packageAfterCopy: async (config, buildPath) => {
-      console.log('Copying better-sqlite3 to buildPath...');
+      console.log('Copying native dependencies and assets to buildPath...');
       const copyDep = (depName: string) => {
         const src = path.join(__dirname, 'node_modules', depName);
         const dst = path.join(buildPath, 'node_modules', depName);
@@ -40,6 +40,26 @@ const config: ForgeConfig = {
       copyDep('better-sqlite3');
       copyDep('bindings');
       copyDep('file-uri-to-path');
+
+      const assetsSrc = path.join(__dirname, 'assets');
+      const assetsDst = path.join(buildPath, 'assets');
+      if (fs.existsSync(assetsSrc)) {
+        fs.cpSync(assetsSrc, assetsDst, { recursive: true });
+      }
+    },
+    postPackage: async (forgeConfig, options) => {
+      const rceditPath = path.join(__dirname, 'node_modules', 'electron-winstaller', 'vendor', 'rcedit.exe');
+      const exePath = path.join(options.outputPaths[0], 'PC Cleaner.exe');
+      const icoPath = path.join(__dirname, 'assets', 'icon.ico');
+      if (fs.existsSync(rceditPath) && fs.existsSync(exePath) && fs.existsSync(icoPath)) {
+        try {
+          const { execFileSync } = await import('child_process');
+          execFileSync(rceditPath, [exePath, '--set-icon', icoPath]);
+          console.log('Successfully stamped icon into PC Cleaner.exe with rcedit');
+        } catch (err) {
+          console.warn('Could not run rcedit:', err);
+        }
+      }
     }
   },
   plugins: [

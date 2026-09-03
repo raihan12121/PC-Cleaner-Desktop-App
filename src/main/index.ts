@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import started from 'electron-squirrel-startup';
@@ -10,31 +10,43 @@ if (started) {
   app.quit();
 }
 
+// Ensure Windows Taskbar registers the application icon and groups properly
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.squirrel.pc_cleaner.PCCleaner');
+}
+
 let mainWindow: BrowserWindow | null = null;
 
-const getAppIcon = (): string | undefined => {
+const getAppIcon = () => {
   const possiblePaths = [
     path.join(__dirname, '../../assets/icon.png'),
     path.join(__dirname, '../../assets/icon.ico'),
-    path.join(process.resourcesPath, 'assets/icon.png'),
-    path.join(process.resourcesPath, 'assets/icon.ico'),
-    path.join(app.getAppPath(), 'assets/icon.png'),
+    path.join(process.resourcesPath, 'assets', 'icon.png'),
+    path.join(process.resourcesPath, 'assets', 'icon.ico'),
+    path.join(process.resourcesPath, 'icon.png'),
+    path.join(app.getAppPath(), 'assets', 'icon.png'),
+    path.join(app.getAppPath(), 'assets', 'icon.ico'),
   ];
   for (const p of possiblePaths) {
-    if (fs.existsSync(p)) return p;
+    if (fs.existsSync(p)) {
+      const img = nativeImage.createFromPath(p);
+      if (!img.isEmpty()) {
+        return img;
+      }
+    }
   }
   return undefined;
 };
 
 const createWindow = (): void => {
-  const iconPath = getAppIcon();
+  const appIcon = getAppIcon();
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
     minHeight: 700,
     frame: false,
-    icon: iconPath,
+    icon: appIcon,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#18181B',
@@ -51,8 +63,15 @@ const createWindow = (): void => {
     show: false,
   });
 
+  if (appIcon) {
+    mainWindow.setIcon(appIcon);
+  }
+
   // Graceful show after ready
   mainWindow.once('ready-to-show', () => {
+    if (appIcon) {
+      mainWindow?.setIcon(appIcon);
+    }
     mainWindow?.show();
   });
 
