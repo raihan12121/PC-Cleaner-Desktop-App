@@ -2,8 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useIpc } from '../hooks/useIpc';
 import { IPC_CHANNELS } from '../../main/ipc/channels';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useTheme } from '../context/ThemeContext';
 
 const Dashboard: React.FC = () => {
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === 'dark';
     const { invoke: getInfo, loading: infoLoading } = useIpc(IPC_CHANNELS.SYSTEM_INFO);
     const { invoke: getTimeline } = useIpc(IPC_CHANNELS.DB_QUERY_TIMELINE);
     const { invoke: getDriveHealth } = useIpc(IPC_CHANNELS.DRIVE_HEALTH);
@@ -87,13 +90,13 @@ const Dashboard: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const COLORS = ['#0A84FF', 'rgba(255, 255, 255, 0.08)'];
+    const COLORS = ['#0A84FF', isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'];
 
     if (infoLoading && isRefreshing) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-[#161618] text-[#86868B]">
-                <div className="w-10 h-10 border-2 border-white/10 border-t-[#0A84FF] rounded-full animate-spin mb-3"></div>
-                <p className="text-[13px] font-medium text-[#F5F5F7]">Analyzing System State...</p>
+            <div className="flex-1 flex flex-col items-center justify-center bg-[var(--apple-bg)] text-[var(--apple-text-secondary)]">
+                <div className="w-10 h-10 border-2 border-[var(--apple-glass-border)] border-t-[#0A84FF] rounded-full animate-spin mb-3"></div>
+                <p className="text-[13px] font-medium text-[var(--apple-text-primary)]">Analyzing System State...</p>
             </div>
         );
     }
@@ -108,8 +111,8 @@ const Dashboard: React.FC = () => {
             {/* Apple macOS Top Bar */}
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-white tracking-tight">Overview</h1>
-                    <p className="text-[13px] text-[#86868B] mt-0.5">Real-time hardware status and storage telemetry</p>
+                    <h1 className="text-2xl font-bold text-[var(--apple-text-primary)] tracking-tight">Overview</h1>
+                    <p className="text-[13px] text-[var(--apple-text-secondary)] mt-0.5">Real-time hardware status and storage telemetry</p>
                 </div>
                 <div className="flex items-center space-x-2">
                     <span className="w-2 h-2 rounded-full bg-[#30D158] animate-pulse"></span>

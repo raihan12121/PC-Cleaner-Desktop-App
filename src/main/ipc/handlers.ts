@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, nativeTheme } from 'electron';
 import si from 'systeminformation';
 import * as cron from 'node-cron';
 import { IPC_CHANNELS } from './channels';
@@ -121,5 +121,25 @@ export function registerIpcHandlers() {
     ipcMain.handle(IPC_CHANNELS.PRIVACY_SCAN, async () => { try { const result = await privacyCleaner.scan(); const scanId = logScanResult({ module: privacyCleaner.moduleName, itemsFound: result.items.length, bytesFreed: result.totalBytes }); registerScan(privacyCleaner.moduleName, result.items, scanId); return { ...result, scanId }; } catch (e) { return { error: String(e) }; } });
     ipcMain.handle(IPC_CHANNELS.PRIVACY_CLEAN, async (_, items: unknown, scanId: unknown) => { try { const result = await privacyCleaner.clean(validateCleanup(privacyCleaner.moduleName, items, scanId)); logCleanHistory({ scanId: scanId as number, itemsRemoved: result.itemsRemoved, bytesFreed: result.bytesFreed }); return result; } catch (e) { return { error: String(e) }; } });
     ipcMain.handle(IPC_CHANNELS.DRIVE_HEALTH, async () => { try { return await driveHealth.scan(); } catch (e) { return { error: String(e) }; } });
+    ipcMain.handle(IPC_CHANNELS.THEME_SET, (_event, theme: 'dark' | 'light' | 'system') => {
+        try {
+            if (theme === 'dark' || theme === 'light' || theme === 'system') {
+                nativeTheme.themeSource = theme;
+                const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+                if (win) {
+                    const isDark = theme === 'system' ? nativeTheme.shouldUseDarkColors : theme === 'dark';
+                    win.setTitleBarOverlay({
+                        color: isDark ? '#18181B' : '#F2F2F7',
+                        symbolColor: isDark ? '#F5F5F7' : '#1C1C1E',
+                        height: 40
+                    });
+                    win.setBackgroundColor(isDark ? '#121214' : '#F6F6F8');
+                }
+            }
+            return { success: true };
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
     void scheduler.loadSchedules();
 }

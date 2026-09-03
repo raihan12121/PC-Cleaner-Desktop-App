@@ -48,7 +48,10 @@ export const IPC_CHANNELS = {
     WINDOW_CLOSE: 'window:close',
 
     // Drive Health
-    DRIVE_HEALTH: 'drive:health'
+    DRIVE_HEALTH: 'drive:health',
+
+    // Theme Management
+    THEME_SET: 'theme:set'
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

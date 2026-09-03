@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useIpc } from '../hooks/useIpc';
 import { IPC_CHANNELS } from '../../main/ipc/channels';
 import appLogo from '../assets/app-icon.png';
+import { useTheme } from '../context/ThemeContext';
 
 const Settings: React.FC = () => {
     const { invoke: resetData } = useIpc(IPC_CHANNELS.DB_RESET);
     const { invoke: saveSchedule, error: scheduleError } = useIpc(IPC_CHANNELS.DB_SAVE_SCHEDULE);
     const { invoke: getSchedules } = useIpc(IPC_CHANNELS.DB_QUERY_SCHEDULES);
 
+    const { theme, setTheme } = useTheme();
     const [scheduledScan, setScheduledScan] = useState(false);
     const [smartAlerts, setSmartAlerts] = useState(true);
-    const [theme, setTheme] = useState('Dark');
 
     useEffect(() => {
         getSchedules().then((schedules: any) => {
@@ -105,25 +106,98 @@ const Settings: React.FC = () => {
 
                 {/* Appearance */}
                 <div className="apple-glass rounded-2xl p-5">
-                    <div className="text-[11px] font-bold text-[#86868B] uppercase tracking-wider mb-4 pb-2 border-b border-white/[0.06]">
-                        Appearance
+                    <div className="text-[11px] font-bold text-[var(--apple-text-secondary)] uppercase tracking-wider mb-4 pb-2 border-b border-[var(--apple-sidebar-border)]">
+                        Appearance & Color Theme
                     </div>
 
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-[13px] font-semibold text-white">Color Interface Theme</div>
-                            <div className="text-[11px] text-[#86868B] mt-0.5">
-                                macOS Sequoia Frosted Graphite
+                    <div className="grid grid-cols-3 gap-3">
+                        {/* Light Mode Tile */}
+                        <div
+                            onClick={() => setTheme('light')}
+                            className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col items-center text-center ${
+                                theme === 'light'
+                                    ? 'bg-[#0A84FF]/10 border-[#0A84FF] shadow-sm'
+                                    : 'bg-black/[0.02] dark:bg-white/[0.02] border-[var(--apple-glass-border)] hover:border-black/20 dark:hover:border-white/20'
+                            }`}
+                        >
+                            <div className="w-full h-16 rounded-lg bg-[#F6F6F8] border border-black/10 p-1.5 flex flex-col justify-between mb-2 shadow-inner overflow-hidden">
+                                <div className="flex items-center space-x-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                                </div>
+                                <div className="w-3/4 h-2 bg-black/10 rounded-sm" />
+                                <div className="w-1/2 h-2 bg-blue-500/20 rounded-sm" />
+                            </div>
+                            <div className="flex items-center space-x-1.5">
+                                <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span className={`text-[12px] font-semibold ${theme === 'light' ? 'text-[#0A84FF]' : 'text-[var(--apple-text-primary)]'}`}>
+                                    Light
+                                </span>
                             </div>
                         </div>
-                        <select
-                            value={theme}
-                            onChange={(e) => setTheme(e.target.value)}
-                            className="bg-white/[0.06] border border-white/[0.1] text-white text-[12px] rounded-xl px-3 py-1.5 outline-none font-medium focus:border-[#0A84FF] transition-all cursor-pointer"
+
+                        {/* Dark Mode Tile */}
+                        <div
+                            onClick={() => setTheme('dark')}
+                            className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col items-center text-center ${
+                                theme === 'dark'
+                                    ? 'bg-[#0A84FF]/10 border-[#0A84FF] shadow-sm'
+                                    : 'bg-black/[0.02] dark:bg-white/[0.02] border-[var(--apple-glass-border)] hover:border-black/20 dark:hover:border-white/20'
+                            }`}
                         >
-                            <option value="Dark" className="bg-[#1C1C1E] text-white">Dark Mode (Graphite)</option>
-                            <option value="System" className="bg-[#1C1C1E] text-white">System Synchronized</option>
-                        </select>
+                            <div className="w-full h-16 rounded-lg bg-[#121214] border border-white/10 p-1.5 flex flex-col justify-between mb-2 shadow-inner overflow-hidden">
+                                <div className="flex items-center space-x-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                                </div>
+                                <div className="w-3/4 h-2 bg-white/10 rounded-sm" />
+                                <div className="w-1/2 h-2 bg-blue-500/20 rounded-sm" />
+                            </div>
+                            <div className="flex items-center space-x-1.5">
+                                <svg className="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                </svg>
+                                <span className={`text-[12px] font-semibold ${theme === 'dark' ? 'text-[#0A84FF]' : 'text-[var(--apple-text-primary)]'}`}>
+                                    Dark
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* System Auto Tile */}
+                        <div
+                            onClick={() => setTheme('system')}
+                            className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col items-center text-center ${
+                                theme === 'system'
+                                    ? 'bg-[#0A84FF]/10 border-[#0A84FF] shadow-sm'
+                                    : 'bg-black/[0.02] dark:bg-white/[0.02] border-[var(--apple-glass-border)] hover:border-black/20 dark:hover:border-white/20'
+                            }`}
+                        >
+                            <div className="w-full h-16 rounded-lg border border-black/10 dark:border-white/10 p-1.5 flex flex-col justify-between mb-2 shadow-inner overflow-hidden relative">
+                                <div className="absolute inset-0 flex">
+                                    <div className="w-1/2 bg-[#F6F6F8]" />
+                                    <div className="w-1/2 bg-[#121214]" />
+                                </div>
+                                <div className="relative z-10 flex items-center space-x-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                                </div>
+                                <div className="relative z-10 w-3/4 h-2 bg-black/20 dark:bg-white/20 rounded-sm" />
+                                <div className="relative z-10 w-1/2 h-2 bg-blue-500/30 rounded-sm" />
+                            </div>
+                            <div className="flex items-center space-x-1.5">
+                                <svg className="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span className={`text-[12px] font-semibold ${theme === 'system' ? 'text-[#0A84FF]' : 'text-[var(--apple-text-primary)]'}`}>
+                                    Auto
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
