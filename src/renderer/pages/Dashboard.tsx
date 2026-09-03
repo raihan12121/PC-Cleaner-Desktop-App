@@ -6,13 +6,16 @@ import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, Responsive
 const Dashboard: React.FC = () => {
     const { invoke: getInfo, loading: infoLoading } = useIpc(IPC_CHANNELS.SYSTEM_INFO);
     const { invoke: getTimeline } = useIpc(IPC_CHANNELS.DB_QUERY_TIMELINE);
+    const { invoke: getDriveHealth } = useIpc(IPC_CHANNELS.DRIVE_HEALTH);
 
     const [healthScore, setHealthScore] = useState(100);
+    const [driveStatus, setDriveStatus] = useState<{ status: string; score: number; name?: string }>({
+        status: 'Healthy',
+        score: 100,
+        name: 'System Drive'
+    });
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [stats, setStats] = useState({
-        startupCount: 0,
-        tempSize: 0,
-        cpuUsage: 0,
         ramUsed: 0,
         ramTotal: 16
     });
@@ -30,9 +33,21 @@ const Dashboard: React.FC = () => {
             try {
                 const info = await getInfo();
                 const history = await getTimeline();
+                const drives = await getDriveHealth().catch((): null => null);
+
+                if (drives && Array.isArray(drives.items) && drives.items.length > 0) {
+                    const firstDrive = drives.items[0];
+                    const score = firstDrive.metadata?.healthScore ?? 100;
+                    const status = firstDrive.metadata?.healthStatus ?? 'Healthy';
+                    setDriveStatus({
+                        status,
+                        score,
+                        name: firstDrive.name || 'Primary Drive'
+                    });
+                }
 
                 if (info && !info.error) {
-                    const mainDisk = info.disk?.find((d: any) => d.mount?.toLowerCase().startsWith('c:')) || info.disk?.[0];
+                    const mainDisk = info.disk?.find((d: { mount?: string; used?: number; size?: number }): boolean => Boolean(d.mount?.toLowerCase().startsWith('c:'))) || info.disk?.[0];
                     if (mainDisk) {
                         setPieData([
                             { name: 'Used', value: Math.max(0, mainDisk.used || 0) },
@@ -157,12 +172,16 @@ const Dashboard: React.FC = () => {
                     <div className="flex-1 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm shadow-lg">
                         <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Disk Reliability</div>
                         <div className="flex items-center space-x-2 mt-1">
-                            <div className="text-2xl font-black text-green-400">EXCELLENT</div>
-                            <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <div className={`text-2xl font-black ${driveStatus.score >= 80 ? 'text-green-400' : driveStatus.score >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                                {driveStatus.score >= 80 ? 'EXCELLENT' : driveStatus.score >= 50 ? 'WATCH' : 'FAILING'}
+                            </div>
+                            <svg className={`w-5 h-5 ${driveStatus.score >= 80 ? 'text-green-500' : driveStatus.score >= 50 ? 'text-amber-500' : 'text-red-500'}`} fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                         </div>
-                        <div className="text-[10px] text-slate-500 mt-2 font-mono">S.M.A.R.T. Checks Passed</div>
+                        <div className="text-[10px] text-slate-500 mt-2 font-mono">
+                            {driveStatus.name}: {driveStatus.status} (Score {driveStatus.score}/100)
+                        </div>
                     </div>
                 </div>
             </div>

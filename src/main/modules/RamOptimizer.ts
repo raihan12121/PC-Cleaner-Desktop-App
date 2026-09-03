@@ -11,6 +11,7 @@ export class RamOptimizer extends BaseModule {
 
     async scan(): Promise<ScanResult> {
         const mem = await si.mem();
+        const inUse = mem.used ?? mem.active ?? 0;
         const items: ScanItem[] = [];
 
         // Abstract item representing the RAM pressure
@@ -18,13 +19,13 @@ export class RamOptimizer extends BaseModule {
             id: 'ram_usage',
             name: 'System Memory',
             path: 'RAM',
-            size: mem.active, // bytes in use
+            size: inUse, // bytes in use
             category: 'Memory',
             selected: true,
             metadata: { total: mem.total }
         });
 
-        return { items, totalBytes: mem.active };
+        return { items, totalBytes: inUse };
     }
 
     async clean(): Promise<CleanResult> {
@@ -35,27 +36,31 @@ export class RamOptimizer extends BaseModule {
                 // Measure before
                 const memBefore = await si.mem();
 
-                // Add-Type requires compilation so it might be slow, but this is a standard PS way
                 const fullScript = `
-          Add-Type -TypeDefinition '
-          using System;
-          using System.Runtime.InteropServices;
-          public class psapi {
-              [DllImport("psapi.dll")]
-              public static extern int EmptyWorkingSet(IntPtr hwProc);
-          }'
-          Get-Process | ForEach-Object {
+          if (-not ([System.Management.Automation.PSTypeName]'psapi').Type) {
+              Add-Type -TypeDefinition '
+              using System;
+              using System.Runtime.InteropServices;
+              public class psapi {
+                  [DllImport("psapi.dll")]
+                  public static extern int EmptyWorkingSet(IntPtr hwProc);
+              }'
+          }
+          Get-Process | Where-Object { $_.Id -ne $PID } | ForEach-Object {
               try {
                   [psapi]::EmptyWorkingSet($_.Handle) | Out-Null
               } catch {}
           }
         `;
 
-                await execFileAsync('powershell.exe', ['-Command', fullScript]);
+                await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', fullScript]);
 
                 // Measure after
                 const memAfter = await si.mem();
-                bytesFreed = Math.max(0, memBefore.active - memAfter.active);
+                const usedBefore = memBefore.used ?? memBefore.active ?? 0;
+                const usedAfter = memAfter.used ?? memAfter.active ?? 0;
+                const freed = usedBefore - usedAfter;
+                bytesFreed = Math.max(0, freed);
             } catch (e) {
                 console.error('RAM Optimization failed', e);
                 return { itemsRemoved: 0, bytesFreed: 0, success: false, error: String(e) };
@@ -65,7 +70,6 @@ export class RamOptimizer extends BaseModule {
         if (os.platform() !== 'win32') {
             return { itemsRemoved: 0, bytesFreed: 0, success: false, error: 'RAM optimization is only supported on Windows.' };
         }
-
         return { itemsRemoved: 1, bytesFreed, success: true };
     }
 

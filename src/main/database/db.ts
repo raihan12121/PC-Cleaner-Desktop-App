@@ -84,4 +84,14 @@ export const resetDatabase = () => {
     DROP TABLE IF EXISTS schedules;
   `);
     createTables();
+
+    // Clean up physical restore directories so orphaned files do not remain on disk
+    try {
+        const restoreDir = path.join(app.getPath('userData'), 'restore');
+        if (fs.existsSync(restoreDir)) {
+            fs.rmSync(restoreDir, { recursive: true, force: true });
+        }
+    } catch (e) {
+        console.warn('Could not remove restore directory during reset:', e);
+    }
 };

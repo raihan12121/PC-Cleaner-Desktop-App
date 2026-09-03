@@ -27,6 +27,7 @@ export interface CleanProgress {
 
 export interface DiskCleanOptions {
     shred?: boolean;
+    excludeRecycleBin?: boolean;
     onProgress?: (progress: CleanProgress) => void;
 }
 
@@ -108,6 +109,10 @@ export class DiskCleaner extends BaseModule {
             const entries = await fs.promises.readdir(dir, { withFileTypes: true });
 
             for (const entry of entries) {
+                // Skip symlinks and directory junctions to prevent traversing outside target roots
+                if (entry.isSymbolicLink()) {
+                    continue;
+                }
                 const fullPath = path.join(dir, entry.name);
                 try {
                     if (entry.isDirectory()) {
@@ -119,7 +124,7 @@ export class DiskCleaner extends BaseModule {
                             id: Buffer.from(fullPath).toString('base64'),
                             path: fullPath,
                             name: entry.name,
-                            size: stat.size,
+                            size: Math.max(0, stat.size || 0),
                             category,
                             selected: true,
                             metadata: { rootDir: dir }
@@ -141,15 +146,25 @@ export class DiskCleaner extends BaseModule {
         try {
             const psScript = `
                 $rb = (New-Object -ComObject Shell.Application).NameSpace(0xa)
-                $count = $rb.Items().Count
-                $size = ($rb.Items() | Measure-Object -Property Size -Sum).Sum
-                [PSCustomObject]@{ Count = if ($count) { $count } else { 0 }; Size = if ($size) { $size } else { 0 } } | ConvertTo-Json
+                $count = 0
+                $totalSize = [int64]0
+                if ($rb) {
+                    foreach ($item in $rb.Items()) {
+                        $count++
+                        $s = [int64]$item.Size
+                        if ($s -lt 0) {
+                            $s = $s + 4294967296
+                        }
+                        $totalSize += [math]::Max([int64]0, $s)
+                    }
+                }
+                [PSCustomObject]@{ Count = $count; Size = [math]::Max([int64]0, $totalSize) } | ConvertTo-Json
             `;
             const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
             if (stdout.trim()) {
                 const parsed = JSON.parse(stdout);
-                const count = Number(parsed.Count) || 0;
-                const size = Number(parsed.Size) || 0;
+                const count = Math.max(0, Number(parsed.Count) || 0);
+                const size = Math.max(0, Number(parsed.Size) || 0);
 
                 if (count > 0 || size > 0) {
                     return {
@@ -169,7 +184,7 @@ export class DiskCleaner extends BaseModule {
         return null;
     }
 
-    async scan(): Promise<ScanResult> {
+    async scan(options?: { excludeRecycleBin?: boolean }): Promise<ScanResult> {
         const items: ScanItem[] = [];
         const isWin = os.platform() === 'win32';
 
@@ -221,10 +236,12 @@ export class DiskCleaner extends BaseModule {
             items.push(...list);
         }
 
-        // Scan Recycle Bin
-        const recycleBinItem = await this.scanRecycleBin();
-        if (recycleBinItem) {
-            items.push(recycleBinItem);
+        // Scan Recycle Bin unless excluded
+        if (!options?.excludeRecycleBin) {
+            const recycleBinItem = await this.scanRecycleBin();
+            if (recycleBinItem) {
+                items.push(recycleBinItem);
+            }
         }
 
         // Deduplicate items by path
@@ -352,8 +369,10 @@ export class DiskCleaner extends BaseModule {
 
         for (const item of items) {
             if (item.metadata?.isRecycleBin || item.path === 'RecycleBin://') {
-                hasRecycleBin = true;
-                recycleBinItem = item;
+                if (!options?.excludeRecycleBin) {
+                    hasRecycleBin = true;
+                    recycleBinItem = item;
+                }
             } else {
                 normalFiles.push(item);
             }

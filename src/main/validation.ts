@@ -17,8 +17,11 @@ export function assertScanItems(value: unknown): asserts value is ScanItem[] {
             typeof candidate.name !== 'string' ||
             typeof candidate.category !== 'string' ||
             typeof candidate.selected !== 'boolean' ||
-            typeof candidate.size !== 'number' || !Number.isFinite(candidate.size) || candidate.size < 0) {
+            typeof candidate.size !== 'number' || !Number.isFinite(candidate.size)) {
             throw new Error('Invalid cleanup item data.');
+        }
+        if (candidate.size < 0) {
+            candidate.size = 0;
         }
     }
 }

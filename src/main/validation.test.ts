@@ -19,9 +19,12 @@ afterEach(async () => {
 });
 
 describe('IPC validation', () => {
-    it('accepts valid scan items and rejects malformed or negative data', () => {
+    it('accepts valid scan items, clamps negative size overflows, and rejects malformed data', () => {
         expect(() => assertScanItems([{ id: '1', path: 'C:\\Temp\\a', name: 'a', size: 0, category: 'Temp', selected: true }])).not.toThrow();
-        expect(() => assertScanItems([{ id: '1', path: 'x', name: 'x', size: -1, category: 'Temp', selected: true }])).toThrow();
+        const overflowItem = [{ id: '1', path: 'C:\\Temp\\b', name: 'b', size: -512638641, category: 'Temp', selected: true }];
+        assertScanItems(overflowItem);
+        expect(overflowItem[0].size).toBe(0);
+        expect(() => assertScanItems([{ id: '', path: 'x', name: 'x', size: 10, category: 'Temp', selected: true }])).toThrow();
         expect(() => assertScanItems(null)).toThrow();
     });
 

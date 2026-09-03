@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, NavLink } from 'react-router-dom';
 
 import Cleaner from './pages/Cleaner';
@@ -27,10 +27,20 @@ const NavItem = ({ to, icon, label }: { to: string; icon: string; label: string 
     </NavLink>
 );
 
-const App = () => {
+const App: React.FC = () => {
+    const [version, setVersion] = useState('1.0.5');
+
+    useEffect(() => {
+        if (window.api?.invoke) {
+            window.api.invoke('app:getVersion')
+                .then((v: string) => { if (v) setVersion(v); })
+                .catch(() => { /* keep default */ });
+        }
+    }, []);
+
     return (
         <Router>
-            <div className="flex h-screen bg-slate-950 font-sans text-slate-200">
+            <div className="flex h-screen bg-slate-950 font-sans text-slate-200 select-none">
                 {/* Sidebar */}
                 <div className="w-64 bg-slate-900/80 border-r border-slate-800/60 flex flex-col shadow-xl z-10 backdrop-blur-md shrink-0">
                     <div className="p-6">
@@ -51,7 +61,7 @@ const App = () => {
                             <div className="w-2 h-2 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></div>
                             <span className="text-xs text-slate-300 font-medium tracking-tight">System Protected</span>
                         </div>
-                        <div className="text-[10px] text-slate-500 font-mono uppercase tracking-[0.2em] opacity-50">v1.0.0 Stable</div>
+                        <div className="text-[10px] text-slate-500 font-mono uppercase tracking-[0.2em] opacity-70">v{version} Stable</div>
                     </div>
                 </div>
 
@@ -59,11 +69,6 @@ const App = () => {
                 <div className="flex-1 overflow-hidden relative border-l border-white/5">
                     <div className="absolute inset-0 bg-slate-950 shadow-2xl rounded-l-3xl overflow-hidden border-l border-slate-800/40">
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.05),transparent_60%)] pointer-events-none"></div>
-                        <div className="absolute right-4 top-2 z-20 flex gap-1" role="group" aria-label="Window controls">
-                            <button type="button" aria-label="Minimize window" title="Minimize" onClick={() => window.api.minimize()} className="h-8 w-8 rounded text-slate-400 hover:bg-slate-800 hover:text-white">—</button>
-                            <button type="button" aria-label="Maximize window" title="Maximize" onClick={() => window.api.maximize()} className="h-8 w-8 rounded text-slate-400 hover:bg-slate-800 hover:text-white">□</button>
-                            <button type="button" aria-label="Close window" title="Close" onClick={() => window.api.close()} className="h-8 w-8 rounded text-slate-400 hover:bg-red-600 hover:text-white">×</button>
-                        </div>
                         <Routes>
                             <Route path="/" element={<Dashboard />} />
                             <Route path="/cleaner" element={<Cleaner />} />

@@ -56,6 +56,7 @@ const Cleaner: React.FC = () => {
     const [cleanError, setCleanError] = useState<string | null>(null);
     const [secureShred, setSecureShred] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
+    const [visibleCount, setVisibleCount] = useState(250);
 
     // Subscribe to real-time progress events from the main process
     useEffect(() => {
@@ -73,6 +74,7 @@ const Cleaner: React.FC = () => {
         setCleanError(null);
         setCleanProgress(null);
         setSelectedCategory('All');
+        setVisibleCount(250);
         invoke();
     };
 
@@ -345,7 +347,7 @@ const Cleaner: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-1">
-                                    {displayedItems.map(item => (
+                                    {displayedItems.slice(0, visibleCount).map(item => (
                                         <div
                                             key={item.id}
                                             className="flex items-center justify-between p-2.5 hover:bg-slate-800/60 rounded-lg transition-colors group cursor-pointer"
@@ -361,7 +363,7 @@ const Cleaner: React.FC = () => {
                                                     />
                                                     <div className={`w-5 h-5 border rounded flex items-center justify-center transition-colors ${item.selected ? 'bg-cyan-500 border-cyan-500' : 'border-slate-600 bg-slate-900/50 group-hover:border-slate-500'}`}>
                                                         {item.selected && (
-                                                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                             <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                                             </svg>
                                                         )}
@@ -382,6 +384,16 @@ const Cleaner: React.FC = () => {
                                             </div>
                                         </div>
                                     ))}
+                                    {displayedItems.length > visibleCount && (
+                                        <div className="p-4 text-center">
+                                            <button
+                                                onClick={() => setVisibleCount(prev => prev + 250)}
+                                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg text-xs font-bold transition-colors border border-slate-700"
+                                            >
+                                                Load More ({visibleCount} of {displayedItems.length.toLocaleString()} displayed)
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

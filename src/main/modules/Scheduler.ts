@@ -3,7 +3,7 @@ import { DiskCleaner } from './DiskCleaner';
 import { PrivacyCleaner } from './PrivacyCleaner';
 import * as cron from 'node-cron';
 import { getDb } from '../database/db';
-import { markScheduleRun } from '../database/queries';
+import { logScanResult, logCleanHistory, markScheduleRun } from '../database/queries';
 
 interface ScheduleRow {
     id: number;
@@ -44,9 +44,20 @@ export class Scheduler extends BaseModule {
             if (moduleName === 'PrivacyCleaner') cleaner = new PrivacyCleaner();
 
             if (cleaner) {
-                const scan = await cleaner.scan();
+                // Scheduled automatic cleanups exclude the Recycle Bin to prevent unexpected data loss
+                const scan = await cleaner.scan({ excludeRecycleBin: true });
                 if (scan.items.length > 0) {
-                    const result = await cleaner.clean(scan.items);
+                    const scanId = logScanResult({
+                        module: cleaner.moduleName,
+                        itemsFound: scan.items.length,
+                        bytesFreed: scan.totalBytes
+                    });
+                    const result = await cleaner.clean(scan.items, { excludeRecycleBin: true });
+                    logCleanHistory({
+                        scanId,
+                        itemsRemoved: result.itemsRemoved,
+                        bytesFreed: result.bytesFreed
+                    });
                     console.log(`[Scheduler] ${moduleName} freed ${(result.bytesFreed / 1024 / 1024).toFixed(2)} MB`);
                 }
                 markScheduleRun(moduleName);

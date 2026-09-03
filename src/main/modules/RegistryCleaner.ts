@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
 import os from 'os';
+import { logRestorePoint } from '../database/queries';
 
 const execFileAsync = promisify(execFile);
 
@@ -22,22 +23,57 @@ export class RegistryCleaner extends BaseModule {
 
         const items: ScanItem[] = [];
 
-        // PowerShell script to enumerate HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall
-        // and extract paths, checking if they exist on disk.
+        // PowerShell script to enumerate HKLM, WOW6432Node, and HKCU Uninstall keys
+        // Sanitize path (trim quotes, trailing slashes) and check secondary indicators (UninstallString)
         const psScript = `
-      $path = "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
-      if (!(Test-Path $path)) { exit }
-      $keys = Get-ChildItem -Path $path
+      $paths = @(
+          "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+          "HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+          "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+      )
       $orphans = @()
-      foreach ($key in $keys) {
-          $installLocation = (Get-ItemProperty $key.PSPath).InstallLocation
-          if ($installLocation -and !(Test-Path $installLocation)) {
-              $orphans += [PSCustomObject]@{
-                  Path = $key.Name
-                  DisplayName = (Get-ItemProperty $key.PSPath).DisplayName
+
+      foreach ($rootPath in $paths) {
+          if (!(Test-Path -LiteralPath $rootPath)) { continue }
+          $keys = Get-ChildItem -LiteralPath $rootPath -ErrorAction SilentlyContinue
+          if (!$keys) { continue }
+
+          foreach ($key in $keys) {
+              try {
+                  $props = Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction SilentlyContinue
+                  if (!$props) { continue }
+
+                  $installLocation = $props.InstallLocation
+                  if ($installLocation -and $installLocation.Trim()) {
+                      $cleanLoc = $installLocation.Trim('"', "'", ' ').TrimEnd('\\', '/')
+                      if ($cleanLoc.Length -gt 0 -and !(Test-Path -LiteralPath $cleanLoc)) {
+                          # Secondary check: verify if UninstallString points to a real executable
+                          $hasValidUninstaller = $false
+                          $uninstallString = $props.UninstallString
+                          if ($uninstallString -and $uninstallString.Trim()) {
+                              $cleanUninst = $uninstallString.Trim('"', "'", ' ')
+                              if ($cleanUninst -match '^([^"]+?\\.exe)') {
+                                  $cleanUninst = $matches[1]
+                              }
+                              if (Test-Path -LiteralPath $cleanUninst) {
+                                  $hasValidUninstaller = $true
+                              }
+                          }
+
+                          if (!$hasValidUninstaller) {
+                              $orphans += [PSCustomObject]@{
+                                  Path = $key.Name
+                                  DisplayName = $props.DisplayName
+                              }
+                          }
+                      }
+                  }
+              } catch {
+                  # Ignore inaccessible registry keys
               }
           }
       }
+
       $orphans | ConvertTo-Json
     `;
 
@@ -54,12 +90,19 @@ export class RegistryCleaner extends BaseModule {
                 const orphans = Array.isArray(parsed) ? parsed : [parsed];
 
                 let idCounter = 1;
+                const seenPaths = new Set<string>();
+
                 for (const orphan of orphans) {
+                    if (!orphan || !orphan.Path) continue;
+                    const normalizedPath = String(orphan.Path).trim();
+                    if (seenPaths.has(normalizedPath.toLowerCase())) continue;
+                    seenPaths.add(normalizedPath.toLowerCase());
+
                     items.push({
                         id: `reg_${idCounter++}`,
-                        path: orphan.Path, // e.g. HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\App
-                        name: orphan.DisplayName || path.basename(orphan.Path),
-                        size: 0, // Registry keys size is negligible for this view
+                        path: normalizedPath,
+                        name: orphan.DisplayName || path.basename(normalizedPath),
+                        size: 0,
                         category: 'Orphaned Installers',
                         selected: true
                     });
@@ -78,61 +121,109 @@ export class RegistryCleaner extends BaseModule {
         }
 
         let itemsRemoved = 0;
+        let skippedCount = 0;
 
-        // 1. Export backup
+        // 1. Create a dedicated session directory for this cleanup batch
         const timestamp = Date.now();
-        const backupDir = path.join(app.getPath('userData'), 'restore', 'registry');
-        if (!fs.existsSync(backupDir)) {
-            await fs.promises.mkdir(backupDir, { recursive: true });
+        const backupRoot = path.join(app.getPath('userData'), 'restore', 'registry');
+        const sessionDir = path.join(backupRoot, `session_${timestamp}`);
+
+        if (!fs.existsSync(sessionDir)) {
+            await fs.promises.mkdir(sessionDir, { recursive: true });
         }
-        const backupFile = path.join(backupDir, `backup_${timestamp}`);
 
-        try {
-            for (const item of items) {
-                if (!/^HKEY_(LOCAL_MACHINE|CURRENT_USER)\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\[^\\]+$/i.test(item.path)) {
-                    throw new Error('Invalid registry cleanup path.');
-                }
+        const validPathRegex = /^HKEY_(LOCAL_MACHINE|CURRENT_USER)\\Software\\(WOW6432Node\\)?Microsoft\\Windows\\CurrentVersion\\Uninstall\\[^\\]+$/i;
 
-                const itemBackup = `${backupFile}_${item.id}.reg`;
+        for (const item of items) {
+            if (!validPathRegex.test(item.path)) {
+                console.warn(`Skipping invalid registry cleanup path: ${item.path}`);
+                skippedCount++;
+                continue;
+            }
 
-                // Export registry key backup using reg.exe directly
-                try {
-                    await execFileAsync('reg.exe', ['export', item.path, itemBackup, '/y']);
-                } catch (exportErr) {
-                    console.warn(`Registry backup warning for ${item.path}:`, exportErr);
-                }
+            const itemBackup = path.join(sessionDir, `${item.id}.reg`);
 
-                // Delete the registry key using reg.exe delete directly
+            // Export registry key backup using reg.exe
+            try {
+                await execFileAsync('reg.exe', ['export', item.path, itemBackup, '/y']);
+            } catch (exportErr) {
+                console.warn(`Registry backup warning for ${item.path}:`, exportErr);
+            }
+
+            // Delete the registry key using reg.exe delete
+            try {
                 await execFileAsync('reg.exe', ['delete', item.path, '/f']);
                 itemsRemoved++;
+            } catch (deleteErr) {
+                console.warn(`Failed to delete registry key ${item.path} (may require elevation):`, deleteErr);
+                skippedCount++;
             }
-        } catch (e) {
-            console.error('Failed to clean registry:', e);
-            return { itemsRemoved, bytesFreed: 0, success: false, error: String(e) };
+        }
+
+        // Save session manifest and log restore point
+        if (itemsRemoved > 0) {
+            try {
+                const manifestPath = path.join(sessionDir, 'manifest.json');
+                await fs.promises.writeFile(manifestPath, JSON.stringify({
+                    timestamp,
+                    itemsCount: itemsRemoved,
+                    items: items.map(i => ({ id: i.id, path: i.path, name: i.name }))
+                }, null, 2), 'utf8');
+
+                logRestorePoint({ module: this.moduleName, filePath: sessionDir });
+            } catch (e) {
+                console.warn('Could not save registry restore manifest:', e);
+            }
         }
 
         return {
             itemsRemoved,
             bytesFreed: 0,
-            success: itemsRemoved === items.length
+            skippedCount,
+            success: itemsRemoved > 0 || items.length === 0,
+            error: skippedCount > 0 ? `${skippedCount} registry key(s) could not be removed (Administrator rights may be required).` : undefined
         };
     }
 
     async rollback(): Promise<void> {
         if (!this.isWindows()) return;
-        const backupDir = path.join(app.getPath('userData'), 'restore', 'registry');
-        if (!fs.existsSync(backupDir)) {
+        const backupRoot = path.join(app.getPath('userData'), 'restore', 'registry');
+        if (!fs.existsSync(backupRoot)) {
             throw new Error('No registry backups found to restore.');
         }
 
-        const files = (await fs.promises.readdir(backupDir)).filter(f => f.endsWith('.reg'));
-        if (files.length === 0) {
+        const entries = await fs.promises.readdir(backupRoot);
+
+        // Find session directories
+        const sessionDirs = entries.filter(e => e.startsWith('session_')).sort().reverse();
+
+        if (sessionDirs.length > 0) {
+            const latestSessionDir = path.join(backupRoot, sessionDirs[0]);
+            const files = (await fs.promises.readdir(latestSessionDir)).filter(f => f.endsWith('.reg'));
+
+            if (files.length === 0) {
+                throw new Error('No registry backup files found in latest session.');
+            }
+
+            // Restore ALL .reg files in the batch session
+            for (const file of files) {
+                const regFilePath = path.join(latestSessionDir, file);
+                try {
+                    await execFileAsync('reg.exe', ['import', regFilePath]);
+                } catch (importErr) {
+                    console.error(`Failed to import registry backup file ${regFilePath}:`, importErr);
+                }
+            }
+            return;
+        }
+
+        // Fallback for older flat backups
+        const legacyFiles = entries.filter(f => f.endsWith('.reg')).sort().reverse();
+        if (legacyFiles.length === 0) {
             throw new Error('No registry backups found to restore.');
         }
 
-        // Sort newest first
-        files.sort().reverse();
-        const latestBackup = path.join(backupDir, files[0]);
+        const latestBackup = path.join(backupRoot, legacyFiles[0]);
         await execFileAsync('reg.exe', ['import', latestBackup]);
     }
 }

@@ -9,32 +9,26 @@ export class DriveHealth extends BaseModule {
 
         try {
             const diskLayout = await si.diskLayout();
-            const smartData = (await (si as any).smart().catch((): any[] => [])) as any[]; // Handle potential missing or access denied
 
             let idCounter = 1;
             for (const disk of diskLayout) {
-                // Find matching SMART data if available
-                const smart = smartData?.find((d: any) => d.device === disk.device);
-
                 let healthScore = 100;
                 let healthStatus = 'Healthy';
 
-                // Very basic mock logic to classify based on SMART or defaults
-                if (smart) {
-                    if (smart.smartStatus?.toLowerCase() === 'failing') {
-                        healthScore = 20;
-                        healthStatus = 'Failing';
-                    } else if (smart.temperature && smart.temperature > 50) {
-                        healthScore = 60;
-                        healthStatus = 'Watch (High Temp)';
-                    }
+                const status = (disk.smartStatus || 'Ok').toLowerCase();
+                if (status === 'failing' || status === 'bad' || status === 'error') {
+                    healthScore = 20;
+                    healthStatus = 'Failing';
+                } else if (status === 'warning' || (disk.temperature && disk.temperature > 60)) {
+                    healthScore = 60;
+                    healthStatus = 'Watch';
                 }
 
                 items.push({
                     id: `disk_${idCounter++}`,
-                    name: `${disk.vendor || 'Drive'} (${disk.name})`,
+                    name: `${disk.vendor || 'Drive'} (${disk.name || disk.device})`,
                     path: disk.device,
-                    size: disk.size,
+                    size: Math.max(0, disk.size || 0),
                     category: 'SMART Status',
                     selected: false,
                     metadata: {
@@ -42,7 +36,7 @@ export class DriveHealth extends BaseModule {
                         interfaceType: disk.interfaceType,
                         healthScore,
                         healthStatus,
-                        temperature: smart?.temperature || 'N/A'
+                        temperature: disk.temperature ? `${disk.temperature}°C` : 'Normal'
                     }
                 });
             }
@@ -54,7 +48,6 @@ export class DriveHealth extends BaseModule {
     }
 
     async clean(): Promise<CleanResult> {
-        // Drive Health is read-only monitoring
         throw new Error('DriveHealth module is read-only operations.');
     }
 

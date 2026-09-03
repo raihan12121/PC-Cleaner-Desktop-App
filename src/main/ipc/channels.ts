@@ -22,6 +22,7 @@ export const IPC_CHANNELS = {
     // Duplicate Finder Module
     DUPLICATE_SCAN: 'duplicate:scan',
     DUPLICATE_CLEAN: 'duplicate:clean',
+    DUPLICATE_ROLLBACK: 'duplicate:rollback',
 
     // Registry Cleaner Module (Win)
     REGISTRY_SCAN: 'registry:scan',
@@ -31,6 +32,7 @@ export const IPC_CHANNELS = {
     // Startup Manager Module
     STARTUP_SCAN: 'startup:scan',
     STARTUP_TOGGLE: 'startup:toggle',
+    STARTUP_ROLLBACK: 'startup:rollback',
 
     // RAM Optimizer Module
     RAM_INFO: 'ram:info',

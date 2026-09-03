@@ -32,7 +32,7 @@ const SystemMonitor: React.FC = () => {
                 const procList = await getProcesses();
 
                 if (info && !info.error) {
-                    const cpuUsage = Number(info.cpu?.currentLoad ?? 0);
+                    const cpuUsage = Number(info.currentLoad?.currentLoad ?? info.cpu?.currentLoad ?? 0);
                     const totalMem = info.mem?.total || 1;
                     const usedMem = info.mem?.used ?? info.mem?.active ?? 0;
                     const ramUsage = (usedMem / totalMem) * 100;
@@ -62,6 +62,8 @@ const SystemMonitor: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
+    const latestPoint = dataPoints[dataPoints.length - 1] || { cpu: 0, ram: 0 };
+
     return (
         <div className="p-8 h-full flex flex-col pt-12 overflow-y-auto">
             <div className="mb-8">
@@ -71,7 +73,12 @@ const SystemMonitor: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col h-64">
-                    <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider mb-2">CPU Usage (%)</h3>
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider">CPU Usage</h3>
+                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                            {latestPoint.cpu.toFixed(1)}%
+                        </span>
+                    </div>
                     <div className="flex-1 w-full min-h-0">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={dataPoints}>
@@ -83,7 +90,12 @@ const SystemMonitor: React.FC = () => {
                 </div>
 
                 <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col h-64">
-                    <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider mb-2">RAM Usage (%)</h3>
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider">RAM Usage</h3>
+                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                            {latestPoint.ram.toFixed(1)}%
+                        </span>
+                    </div>
                     <div className="flex-1 w-full min-h-0">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={dataPoints}>

@@ -147,8 +147,17 @@ export class DuplicateFinder extends BaseModule {
                         : app.getPath('downloads');
                     await assertSafeFile(item.path, allowedRoot);
 
-                    const backupPath = path.join(restoreDir, `${Date.now()}_${crypto.randomUUID()}_${item.name}`);
+                    const fileId = `${Date.now()}_${crypto.randomUUID()}`;
+                    const backupPath = path.join(restoreDir, `${fileId}_${item.name}`);
+                    const metaPath = path.join(restoreDir, `${fileId}_${item.name}.meta.json`);
+
                     await fs.promises.copyFile(item.path, backupPath);
+                    await fs.promises.writeFile(metaPath, JSON.stringify({
+                        originalPath: item.path,
+                        name: item.name,
+                        size: item.size,
+                        timestamp: Date.now()
+                    }, null, 2), 'utf8');
 
                     logRestorePoint({ module: this.moduleName, filePath: backupPath });
 
@@ -170,6 +179,42 @@ export class DuplicateFinder extends BaseModule {
     }
 
     async rollback(): Promise<void> {
-        console.log('Rollback called for DuplicateFinder');
+        const restoreDir = path.join(app.getPath('userData'), 'restore', 'duplicates');
+        if (!fs.existsSync(restoreDir)) {
+            throw new Error('No duplicate backups found to restore.');
+        }
+
+        const entries = await fs.promises.readdir(restoreDir);
+        const metaFiles = entries.filter(f => f.endsWith('.meta.json'));
+
+        if (metaFiles.length === 0) {
+            throw new Error('No duplicate restore points found.');
+        }
+
+        for (const metaFile of metaFiles) {
+            try {
+                const metaPath = path.join(restoreDir, metaFile);
+                const meta = JSON.parse(await fs.promises.readFile(metaPath, 'utf8'));
+                const backupFile = metaPath.replace(/\.meta\.json$/, '');
+
+                if (fs.existsSync(backupFile) && meta.originalPath) {
+                    const parentDir = path.dirname(meta.originalPath);
+                    if (!fs.existsSync(parentDir)) {
+                        await fs.promises.mkdir(parentDir, { recursive: true });
+                    }
+
+                    // Restore to original location if not currently existing
+                    if (!fs.existsSync(meta.originalPath)) {
+                        await fs.promises.copyFile(backupFile, meta.originalPath);
+                    }
+
+                    // Clean up restore file
+                    await fs.promises.unlink(backupFile).catch(() => { /* ignore */ });
+                    await fs.promises.unlink(metaPath).catch(() => { /* ignore */ });
+                }
+            } catch (err) {
+                console.warn(`Failed to restore duplicate backup ${metaFile}:`, err);
+            }
+        }
     }
 }
