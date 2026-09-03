@@ -13,10 +13,16 @@ import path from 'path';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    icon: path.resolve(__dirname, 'assets/icon'),
+    extraResource: [
+      path.resolve(__dirname, 'assets')
+    ]
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({}),
+    new MakerSquirrel({
+      setupIcon: path.resolve(__dirname, 'assets/icon.ico'),
+    }),
     new MakerZIP({}, ['darwin']),
     new MakerRpm({}),
     new MakerDeb({}),

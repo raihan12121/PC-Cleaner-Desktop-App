@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import started from 'electron-squirrel-startup';
 import { initDatabase } from './database/db';
 import { registerIpcHandlers } from './ipc/handlers';
@@ -11,17 +12,33 @@ if (started) {
 
 let mainWindow: BrowserWindow | null = null;
 
+const getAppIcon = (): string | undefined => {
+  const possiblePaths = [
+    path.join(__dirname, '../../assets/icon.png'),
+    path.join(__dirname, '../../assets/icon.ico'),
+    path.join(process.resourcesPath, 'assets/icon.png'),
+    path.join(process.resourcesPath, 'assets/icon.ico'),
+    path.join(app.getAppPath(), 'assets/icon.png'),
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return undefined;
+};
+
 const createWindow = (): void => {
+  const iconPath = getAppIcon();
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
     minHeight: 700,
     frame: false,
+    icon: iconPath,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#0A0E1A',
-      symbolColor: '#94A3B8',
+      color: '#18181B',
+      symbolColor: '#F5F5F7',
       height: 40,
     },
     webPreferences: {
@@ -30,7 +47,7 @@ const createWindow = (): void => {
       nodeIntegration: false,
       sandbox: false,
     },
-    backgroundColor: '#0A0E1A',
+    backgroundColor: '#121214',
     show: false,
   });
 
