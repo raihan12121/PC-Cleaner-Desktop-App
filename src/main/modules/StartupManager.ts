@@ -99,18 +99,36 @@ export class StartupManager extends BaseModule {
             console.warn('Failed to save startup restore backup:', backupErr);
         }
 
-        for (const item of items) {
+        const validItems = items.filter(item => item.category === 'Registry (HKCU Run)' && item.name.length > 0);
+        skippedCount += (items.length - validItems.length);
+
+        if (validItems.length === 1) {
+            const item = validItems[0];
             try {
-                if (item.category === 'Registry (HKCU Run)' && item.name.length > 0) {
-                    const psScript = `Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name ${quotePowerShell(item.name)} -Force -ErrorAction Stop`;
-                    await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
-                    itemsRemoved++;
-                } else {
-                    skippedCount++;
-                }
+                const psScript = `Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name ${quotePowerShell(item.name)} -Force -ErrorAction Stop`;
+                await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
+                itemsRemoved++;
             } catch (e) {
                 console.error(`Failed to handle startup item ${item.name}:`, e);
                 skippedCount++;
+            }
+        } else if (validItems.length > 1) {
+            const psScript = validItems.map(item =>
+                `try { Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name ${quotePowerShell(item.name)} -Force -ErrorAction Stop; [Console]::WriteLine("OK:${item.id}") } catch { [Console]::WriteLine("ERR:${item.id}") }`
+            ).join('; ');
+            try {
+                const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
+                const lines = stdout.split('\n');
+                for (const item of validItems) {
+                    if (lines.some(l => l.trim() === `OK:${item.id}`)) {
+                        itemsRemoved++;
+                    } else {
+                        skippedCount++;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to handle batch startup removal:', e);
+                skippedCount += validItems.length;
             }
         }
 
@@ -144,11 +162,16 @@ export class StartupManager extends BaseModule {
         const content = await fs.promises.readFile(latestFile, 'utf8');
         const items: ScanItem[] = JSON.parse(content);
 
-        for (const item of items) {
-            if (item.category === 'Registry (HKCU Run)' && item.name && item.path) {
-                const psScript = `Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name ${quotePowerShell(item.name)} -Value ${quotePowerShell(item.path)} -Force`;
-                await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
-            }
+        const validItems = items.filter(item => item.category === 'Registry (HKCU Run)' && item.name && item.path);
+        if (validItems.length === 1) {
+            const item = validItems[0];
+            const psScript = `Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name ${quotePowerShell(item.name)} -Value ${quotePowerShell(item.path)} -Force`;
+            await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
+        } else if (validItems.length > 1) {
+            const psScript = validItems.map(item =>
+                `Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name ${quotePowerShell(item.name)} -Value ${quotePowerShell(item.path)} -Force`
+            ).join('; ');
+            await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
         }
     }
 }

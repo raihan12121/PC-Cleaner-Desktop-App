@@ -8,10 +8,10 @@ interface DuplicateScanResult extends ScanResult {
 }
 
 function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
@@ -60,9 +60,10 @@ const DuplicateFinder: React.FC = () => {
                     throw new Error(result.error);
                 }
                 setCleanSummary(result);
+                const removedSet = new Set(result?.removedItemIds || []);
                 setScanData({
                     ...scanData,
-                    items: scanData.items.filter(item => !selected.find(s => s.id === item.id)),
+                    items: scanData.items.filter(item => !removedSet.has(item.id)),
                     totalBytes: Math.max(0, scanData.totalBytes - (result.bytesFreed || 0))
                 });
             } catch (e: any) {

@@ -23,9 +23,10 @@ export const initDatabase = () => {
     const dbPath = getDbPath();
     db = new SQLite(dbPath);
 
-    // Optimizations
+    // Optimizations and constraints
     db.pragma('journal_mode = WAL');
     db.pragma('synchronous = NORMAL');
+    db.pragma('foreign_keys = ON');
 
     createTables();
     return db;

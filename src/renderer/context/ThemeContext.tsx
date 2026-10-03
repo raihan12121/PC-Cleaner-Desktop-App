@@ -49,7 +49,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             // Sync with Electron titleBarOverlay
             if (window.api?.invoke) {
-                window.api.invoke('theme:set', theme).catch(() => {});
+                window.api.invoke('theme:set', theme).catch((): void => {
+                    // Ignore background sync errors
+                });
             }
         };
 

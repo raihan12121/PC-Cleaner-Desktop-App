@@ -11,7 +11,24 @@ const Settings: React.FC = () => {
 
     const { theme, setTheme } = useTheme();
     const [scheduledScan, setScheduledScan] = useState(false);
-    const [smartAlerts, setSmartAlerts] = useState(true);
+    const [smartAlerts, setSmartAlerts] = useState<boolean>(() => {
+        try {
+            const saved = localStorage.getItem('smart_alerts');
+            return saved !== null ? saved === 'true' : true;
+        } catch {
+            return true;
+        }
+    });
+
+    const toggleSmartAlerts = () => {
+        const next = !smartAlerts;
+        setSmartAlerts(next);
+        try {
+            localStorage.setItem('smart_alerts', String(next));
+        } catch {
+            // ignore localStorage quota/storage errors
+        }
+    };
 
     useEffect(() => {
         getSchedules().then((schedules: any) => {
@@ -89,7 +106,7 @@ const Settings: React.FC = () => {
                                 </div>
                             </div>
                             <div
-                                onClick={() => setSmartAlerts(!smartAlerts)}
+                                onClick={toggleSmartAlerts}
                                 className={`w-10 h-6 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 shrink-0 ${
                                     smartAlerts ? 'bg-[#30D158]' : 'bg-white/20'
                                 }`}

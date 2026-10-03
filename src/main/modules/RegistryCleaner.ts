@@ -55,7 +55,7 @@ export class RegistryCleaner extends BaseModule {
                               if ($cleanUninst -match '^([^"]+?\\.exe)') {
                                   $cleanUninst = $matches[1]
                               }
-                              if (Test-Path -LiteralPath $cleanUninst) {
+                              if ($cleanUninst -match '^(?i)msiexec(\\.exe)?$' -or (Test-Path -LiteralPath $cleanUninst) -or (Get-Command -Name $cleanUninst -ErrorAction SilentlyContinue)) {
                                   $hasValidUninstaller = $true
                               }
                           }
@@ -147,10 +147,12 @@ export class RegistryCleaner extends BaseModule {
             try {
                 await execFileAsync('reg.exe', ['export', item.path, itemBackup, '/y']);
             } catch (exportErr) {
-                console.warn(`Registry backup warning for ${item.path}:`, exportErr);
+                console.warn(`Registry backup failed for ${item.path}; skipping deletion for safety:`, exportErr);
+                skippedCount++;
+                continue;
             }
 
-            // Delete the registry key using reg.exe delete
+            // Delete the registry key using reg.exe delete only if backup succeeded
             try {
                 await execFileAsync('reg.exe', ['delete', item.path, '/f']);
                 itemsRemoved++;

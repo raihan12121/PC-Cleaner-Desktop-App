@@ -15,11 +15,13 @@ vi.mock('electron', () => ({
 }));
 
 const execHistory: Array<{ file: string; args: string[] }> = [];
+let mockExecError: ((file: string, args: string[]) => Error | null) | null = null;
 
 vi.mock('child_process', () => ({
     execFile: (file: string, args: string[], callback: (err: Error | null, stdout: string, stderr: string) => void) => {
         execHistory.push({ file, args });
-        callback(null, '', '');
+        const err = mockExecError ? mockExecError(file, args) : null;
+        callback(err, '', '');
     }
 }));
 
@@ -32,6 +34,7 @@ import { RegistryCleaner } from './RegistryCleaner';
 describe('RegistryCleaner Module', () => {
     beforeEach(() => {
         execHistory.length = 0;
+        mockExecError = null;
         if (!fs.existsSync(tempUserData)) {
             fs.mkdirSync(tempUserData, { recursive: true });
         }
@@ -125,5 +128,33 @@ describe('RegistryCleaner Module', () => {
         const result = await cleaner.clean([maliciousItem]);
         expect(result.itemsRemoved).toBe(0);
         expect(result.skippedCount).toBe(1);
+    });
+
+    it('aborts deletion of registry key if backup export fails', async () => {
+        const cleaner = new RegistryCleaner();
+        vi.spyOn(cleaner as any, 'isWindows').mockReturnValue(true);
+
+        mockExecError = (file, args) => {
+            if (file === 'reg.exe' && args[0] === 'export') {
+                return new Error('Export failed due to disk permissions');
+            }
+            return null;
+        };
+
+        const item = {
+            id: 'reg_fail_export',
+            path: 'HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\SafeApp',
+            name: 'SafeApp',
+            size: 0,
+            category: 'Orphaned Installers',
+            selected: true
+        };
+
+        const result = await cleaner.clean([item]);
+        expect(result.itemsRemoved).toBe(0);
+        expect(result.skippedCount).toBe(1);
+
+        const deleteCalls = execHistory.filter(h => h.file === 'reg.exe' && h.args[0] === 'delete');
+        expect(deleteCalls.length).toBe(0);
     });
 });

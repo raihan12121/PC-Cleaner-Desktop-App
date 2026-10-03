@@ -23,14 +23,20 @@ export class DuplicateFinder extends BaseModule {
         });
     }
 
-    private async walkDir(dir: string): Promise<string[]> {
+    private async walkDir(dir: string, maxDepth = 12, currentDepth = 0): Promise<string[]> {
         const files: string[] = [];
+        if (currentDepth > maxDepth) return files;
         try {
+            if (!fs.existsSync(dir)) return files;
             const entries = await fs.promises.readdir(dir, { withFileTypes: true });
             for (const entry of entries) {
+                // Skip symlinks and directory junctions to prevent traversing outside target roots or infinite recursion
+                if (entry.isSymbolicLink()) {
+                    continue;
+                }
                 const fullPath = path.join(dir, entry.name);
                 if (entry.isDirectory()) {
-                    files.push(...await this.walkDir(fullPath));
+                    files.push(...await this.walkDir(fullPath, maxDepth, currentDepth + 1));
                 } else {
                     files.push(fullPath);
                 }
@@ -133,6 +139,8 @@ export class DuplicateFinder extends BaseModule {
     async clean(items: ScanItem[]): Promise<CleanResult> {
         let itemsRemoved = 0;
         let bytesFreed = 0;
+        let skippedCount = 0;
+        const removedItemIds: string[] = [];
 
         const restoreDir = path.join(app.getPath('userData'), 'restore', 'duplicates');
         if (!fs.existsSync(restoreDir)) {
@@ -165,16 +173,22 @@ export class DuplicateFinder extends BaseModule {
                     await fs.promises.unlink(item.path);
                     itemsRemoved++;
                     bytesFreed += item.size;
+                    removedItemIds.push(item.id);
+                } else {
+                    skippedCount++;
                 }
             } catch (e) {
                 console.error(`Failed to delete duplicate ${item.path}:`, e);
+                skippedCount++;
             }
         }
 
         return {
             itemsRemoved,
             bytesFreed,
-            success: items.length === 0 || itemsRemoved === items.length,
+            skippedCount,
+            removedItemIds,
+            success: items.length === 0 || itemsRemoved > 0,
         };
     }
 

@@ -176,7 +176,7 @@ const SystemMonitor: React.FC = () => {
                                         {Number(proc.cpu || 0).toFixed(1)}%
                                     </td>
                                     <td className="px-3 py-2 font-mono text-right text-[#86868B]">
-                                        {(((proc.memRss || proc.mem || 0)) / 1024).toFixed(1)}
+                                        {proc.memRss != null ? (proc.memRss / 1024).toFixed(1) : '0.0'}
                                     </td>
                                 </tr>
                             ))}

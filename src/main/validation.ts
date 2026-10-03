@@ -13,14 +13,17 @@ export function assertScanItems(value: unknown): asserts value is ScanItem[] {
         if (!item || typeof item !== 'object') throw new Error('Invalid cleanup item.');
         const candidate = item as Partial<ScanItem>;
         if (typeof candidate.id !== 'string' || !candidate.id ||
-            typeof candidate.path !== 'string' || !candidate.path ||
+            typeof candidate.path !== 'string' ||
             typeof candidate.name !== 'string' ||
             typeof candidate.category !== 'string' ||
-            typeof candidate.selected !== 'boolean' ||
-            typeof candidate.size !== 'number' || !Number.isFinite(candidate.size)) {
+            (candidate.selected !== undefined && typeof candidate.selected !== 'boolean') ||
+            (candidate.size !== undefined && !Number.isFinite(candidate.size))) {
             throw new Error('Invalid cleanup item data.');
         }
-        if (candidate.size < 0) {
+        if (candidate.selected === undefined) {
+            candidate.selected = true;
+        }
+        if (candidate.size === undefined || candidate.size < 0) {
             candidate.size = 0;
         }
     }

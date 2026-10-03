@@ -52,6 +52,7 @@ describe('DuplicateFinder Module', () => {
         const result = await finder.clean([scanItem]);
         expect(result.success).toBe(true);
         expect(result.itemsRemoved).toBe(1);
+        expect(result.removedItemIds).toContain('dup_1');
         expect(fs.existsSync(testFile)).toBe(false);
 
         const restoreDir = path.join(tempUserData, 'restore', 'duplicates');

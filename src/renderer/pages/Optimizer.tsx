@@ -7,6 +7,8 @@ interface StartupItem {
     name: string;
     path: string;
     category: string;
+    selected?: boolean;
+    size?: number;
 }
 
 const Optimizer: React.FC = () => {
@@ -14,12 +16,14 @@ const Optimizer: React.FC = () => {
     const { invoke: optimizeRam, loading: ramOptimizing } = useIpc(IPC_CHANNELS.RAM_OPTIMIZE);
     const { invoke: getStartup, loading: startupScanning } = useIpc(IPC_CHANNELS.STARTUP_SCAN);
     const { invoke: toggleStartup, error: startupError } = useIpc(IPC_CHANNELS.STARTUP_TOGGLE);
+    const { invoke: rollbackStartup, loading: startupRestoring } = useIpc(IPC_CHANNELS.STARTUP_ROLLBACK);
 
     const [ramUsage, setRamUsage] = useState<number>(0);
     const [ramTotal, setRamTotal] = useState<number>(1);
     const [ramSaved, setRamSaved] = useState<number | null>(null);
     const [startupItems, setStartupItems] = useState<StartupItem[]>([]);
     const [startupScanId, setStartupScanId] = useState<number | null>(null);
+    const [restoreSuccess, setRestoreSuccess] = useState<string | null>(null);
 
     const fetchRam = async () => {
         try {
@@ -57,9 +61,32 @@ const Optimizer: React.FC = () => {
     const handleToggleStartup = async (item: StartupItem) => {
         try {
             if (!startupScanId) throw new Error('Please refresh startup items before changing them.');
-            await toggleStartup([item], startupScanId);
+            if (!confirm(`Remove "${item.name}" from automatic startup? A backup will be created for rollback.`)) {
+                return;
+            }
+            setRestoreSuccess(null);
+            await toggleStartup([{
+                id: item.id,
+                name: item.name,
+                path: item.path || '',
+                category: item.category,
+                selected: true,
+                size: item.size || 0
+            }], startupScanId);
             fetchStartup();
         } catch { /* displayed through hook state */ }
+    };
+
+    const handleRestoreStartup = async () => {
+        if (confirm('Restore recently removed startup items from backup?')) {
+            try {
+                await rollbackStartup();
+                setRestoreSuccess('Startup items restored successfully from backup.');
+                fetchStartup();
+            } catch (e: any) {
+                alert('Restore failed: ' + (e?.message || e));
+            }
+        }
     };
 
     const ramPercent = Math.round((ramUsage / ramTotal) * 100) || 0;
@@ -73,6 +100,15 @@ const Optimizer: React.FC = () => {
                     <p className="text-[13px] text-[#86868B] mt-0.5">Manage background login items and flush unneeded volatile RAM</p>
                 </div>
             </div>
+
+            {restoreSuccess && (
+                <div className="mb-4 rounded-xl border border-[#30D158]/30 bg-[#30D158]/10 p-3.5 text-[#30D158] text-[13px] flex items-center space-x-2">
+                    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span>{restoreSuccess}</span>
+                </div>
+            )}
 
             {startupError && (
                 <div className="mb-4 rounded-xl border border-[#FF453A]/30 bg-[#FF453A]/10 p-3.5 text-[#FF453A] text-[13px] flex items-center space-x-2">
@@ -91,15 +127,24 @@ const Optimizer: React.FC = () => {
                             <h2 className="text-[14px] font-bold text-white tracking-tight">Login Items & Background Tasks</h2>
                             <p className="text-[11px] text-[#86868B]">Apps launched automatically when signing into Windows</p>
                         </div>
-                        <button
-                            onClick={fetchStartup}
-                            className="apple-btn-secondary px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center space-x-1.5"
-                        >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            <span>Refresh</span>
-                        </button>
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={handleRestoreStartup}
+                                disabled={startupScanning || startupRestoring}
+                                className="apple-btn-secondary px-3 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-50"
+                            >
+                                {startupRestoring ? 'Restoring...' : 'Restore Backups'}
+                            </button>
+                            <button
+                                onClick={fetchStartup}
+                                className="apple-btn-secondary px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center space-x-1.5"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar">

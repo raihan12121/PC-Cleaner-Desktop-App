@@ -7,16 +7,18 @@ import { canonicalizePath } from '../validation';
 export class PrivacyCleaner extends BaseModule {
     readonly moduleName = 'PrivacyCleaner';
 
-    private async getDirectorySize(dir: string): Promise<number> {
+    private async getDirectorySize(dir: string, maxDepth = 6, currentDepth = 0): Promise<number> {
         let size = 0;
+        if (currentDepth > maxDepth) return size;
         try {
             if (!fs.existsSync(dir)) return size;
             const entries = await fs.promises.readdir(dir, { withFileTypes: true });
             for (const entry of entries) {
+                if (entry.isSymbolicLink()) continue;
                 const fullPath = path.join(dir, entry.name);
                 try {
                     if (entry.isDirectory()) {
-                        size += await this.getDirectorySize(fullPath);
+                        size += await this.getDirectorySize(fullPath, maxDepth, currentDepth + 1);
                     } else {
                         const stat = await fs.promises.stat(fullPath);
                         size += stat.size;
@@ -82,6 +84,7 @@ export class PrivacyCleaner extends BaseModule {
                 if (!isAllowed) throw new Error('Privacy path is not a recognized cleanup target.');
 
                 if (!fs.existsSync(item.path)) {
+                    skippedCount++;
                     continue;
                 }
 
@@ -89,20 +92,35 @@ export class PrivacyCleaner extends BaseModule {
                 // do NOT delete the Recent folder itself to avoid breaking Explorer Quick Access
                 if (path.basename(item.path).toLowerCase() === 'recent') {
                     const entries = await fs.promises.readdir(item.path, { withFileTypes: true });
+                    let recentFreed = 0;
+                    let recentFilesDeleted = 0;
                     for (const entry of entries) {
                         const full = path.join(item.path, entry.name);
                         try {
+                            let fileSize = 0;
+                            try {
+                                const stat = await fs.promises.stat(full);
+                                fileSize = stat.size;
+                            } catch {
+                                // stat error
+                            }
                             if (entry.isDirectory()) {
                                 await fs.promises.rm(full, { recursive: true, force: true });
                             } else {
                                 await fs.promises.unlink(full);
                             }
+                            recentFilesDeleted++;
+                            recentFreed += fileSize;
                         } catch {
                             // File locked or in-use
                         }
                     }
-                    itemsRemoved++;
-                    bytesFreed += item.size;
+                    if (recentFilesDeleted > 0 || entries.length === 0) {
+                        itemsRemoved++;
+                        bytesFreed += (recentFreed > 0 ? recentFreed : item.size);
+                    } else {
+                        skippedCount++;
+                    }
                     continue;
                 }
 
@@ -130,6 +148,6 @@ export class PrivacyCleaner extends BaseModule {
     }
 
     async rollback(): Promise<void> {
-        console.log('Rollback PrivacyCleaner');
+        throw new Error('Privacy cleanup (browser history and cookies) cannot be rolled back.');
     }
 }

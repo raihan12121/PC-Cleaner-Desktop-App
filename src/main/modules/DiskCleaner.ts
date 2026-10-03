@@ -270,17 +270,24 @@ export class DiskCleaner extends BaseModule {
 
         if (stat.size > 0) {
             const chunkSize = Math.min(stat.size, 65536);
-            const buffer = crypto.randomBytes(chunkSize);
             const fd = await fs.promises.open(filePath, 'r+');
             try {
-                let written = 0;
-                while (written < stat.size) {
-                    const toWrite = Math.min(buffer.length, stat.size - written);
-                    const { bytesWritten } = await fd.write(buffer, 0, toWrite, written);
-                    if (bytesWritten === 0) break;
-                    written += bytesWritten;
+                // 3-Pass Overwrite: Pass 1 (0x00 zeros), Pass 2 (0xFF ones), Pass 3 (cryptographic random)
+                const zeroBuf = Buffer.alloc(chunkSize, 0x00);
+                const oneBuf = Buffer.alloc(chunkSize, 0xff);
+                const passes = [zeroBuf, oneBuf, null];
+
+                for (const passBuffer of passes) {
+                    let written = 0;
+                    while (written < stat.size) {
+                        const toWrite = Math.min(chunkSize, stat.size - written);
+                        const buf = passBuffer ? passBuffer.subarray(0, toWrite) : crypto.randomBytes(toWrite);
+                        const { bytesWritten } = await fd.write(buf, 0, toWrite, written);
+                        if (bytesWritten === 0) break;
+                        written += bytesWritten;
+                    }
+                    await fd.sync();
                 }
-                await fd.sync();
             } finally {
                 await fd.close();
             }
@@ -323,6 +330,7 @@ export class DiskCleaner extends BaseModule {
         try {
             const entries = await fs.promises.readdir(dir, { withFileTypes: true });
             for (const entry of entries) {
+                if (entry.isSymbolicLink()) continue;
                 if (entry.isDirectory()) {
                     const subDir = path.join(dir, entry.name);
                     await this.pruneEmptyDirs(subDir, maxDepth, currentDepth + 1);
@@ -386,7 +394,7 @@ export class DiskCleaner extends BaseModule {
                         '-NoProfile',
                         '-NonInteractive',
                         '-Command',
-                        'Clear-RecycleBin -Force -ErrorAction SilentlyContinue'
+                        'Clear-RecycleBin -Force -ErrorAction Stop'
                     ]);
                 }
                 itemsRemoved++;
@@ -469,7 +477,12 @@ export class DiskCleaner extends BaseModule {
         });
 
         // Prune empty subdirectories in cleaned locations asynchronously in the background
-        const pruneRoots = [app.getPath('temp'), os.tmpdir()];
+        const pruneRoots: string[] = [];
+        try {
+            pruneRoots.push(app.getPath('temp'));
+        } catch { /* ignore */ }
+        if (os.tmpdir()) pruneRoots.push(os.tmpdir());
+
         for (const root of pruneRoots) {
             this.pruneEmptyDirs(root).catch(() => { /* ignore */ });
         }
