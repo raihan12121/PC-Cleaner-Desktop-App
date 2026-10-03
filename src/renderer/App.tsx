@@ -11,6 +11,9 @@ import Privacy from './pages/Privacy';
 import Registry from './pages/Registry';
 import Settings from './pages/Settings';
 import SystemMonitor from './pages/SystemMonitor';
+import Storage from './pages/Storage';
+import RunningApps from './pages/RunningApps';
+import SystemSpecs from './pages/SystemSpecs';
 
 interface NavItemProps {
     to: string;
@@ -95,6 +98,27 @@ const AppContent: React.FC = () => {
                                     icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                                     label="Activity Monitor"
                                 />
+                                <NavItem
+                                    to="/processes"
+                                    icon="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                                    label="Running Apps"
+                                />
+                                <NavItem
+                                    to="/specs"
+                                    icon="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    label="System Specs"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="px-2 mb-1.5 text-[10px] font-bold text-[var(--apple-text-muted)] uppercase tracking-wider">Storage & Disks</div>
+                            <div className="space-y-0.5">
+                                <NavItem
+                                    to="/storage"
+                                    icon="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                                    label="Drives & Storage"
+                                />
                             </div>
                         </div>
 
@@ -178,6 +202,9 @@ const AppContent: React.FC = () => {
                     <div className="flex-1 overflow-hidden relative">
                         <Routes>
                             <Route path="/" element={<Dashboard />} />
+                            <Route path="/storage" element={<Storage />} />
+                            <Route path="/processes" element={<RunningApps />} />
+                            <Route path="/specs" element={<SystemSpecs />} />
                             <Route path="/cleaner" element={<Cleaner />} />
                             <Route path="/registry" element={<Registry />} />
                             <Route path="/duplicates" element={<DuplicateFinder />} />

@@ -47,8 +47,21 @@ export const IPC_CHANNELS = {
     WINDOW_MAXIMIZE: 'window:maximize',
     WINDOW_CLOSE: 'window:close',
 
-    // Drive Health
+    // Drive Health & Storage
     DRIVE_HEALTH: 'drive:health',
+    STORAGE_DRIVES_GET: 'storage:drives:get',
+    STORAGE_DRIVE_OPEN: 'storage:drive:open',
+    STORAGE_LARGE_FILES_SCAN: 'storage:largeFiles:scan',
+    STORAGE_APPS_SCAN: 'storage:apps:scan',
+    STORAGE_ITEM_REVEAL: 'storage:item:reveal',
+    STORAGE_ITEM_DELETE: 'storage:item:delete',
+
+    // Running Apps & Process Manager
+    PROCESSES_GET: 'processes:get',
+    PROCESS_KILL: 'process:kill',
+
+    // Full PC Specifications
+    SPECS_GET: 'system:specs:get',
 
     // Theme Management
     THEME_SET: 'theme:set'

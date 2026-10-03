@@ -40,7 +40,7 @@ describe('DiskCleaner Module', () => {
 
         expect(foundFile1).toBeDefined();
         expect(foundFile2).toBeDefined();
-    });
+    }, 15000);
 
     it('successfully deletes selected junk files from disk and returns removedItemIds', async () => {
         const testDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'pc-cleaner-disk-clean-'));

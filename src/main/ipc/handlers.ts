@@ -10,6 +10,9 @@ import { StartupManager } from '../modules/StartupManager';
 import { RamOptimizer } from '../modules/RamOptimizer';
 import { PrivacyCleaner } from '../modules/PrivacyCleaner';
 import { DriveHealth } from '../modules/DriveHealth';
+import { StorageManager } from '../modules/StorageManager';
+import { ProcessManager } from '../modules/ProcessManager';
+import { SystemSpecsManager } from '../modules/SystemSpecsManager';
 import { Scheduler } from '../modules/Scheduler';
 import { ScanItem } from '../modules/BaseModule';
 import { getScanResults, getScanTimeline, getSchedules, deleteSchedule, logCleanHistory, logScanResult, saveSchedule } from '../database/queries';
@@ -54,6 +57,7 @@ export function registerIpcHandlers() {
     const diskCleaner = new DiskCleaner(); const duplicateFinder = new DuplicateFinder();
     const registryCleaner = new RegistryCleaner(); const startupManager = new StartupManager();
     const ramOptimizer = new RamOptimizer(); const privacyCleaner = new PrivacyCleaner(); const driveHealth = new DriveHealth();
+    const storageManager = new StorageManager(); const processManager = new ProcessManager(); const specsManager = new SystemSpecsManager();
 
     ipcMain.handle(IPC_CHANNELS.DB_RESET, async event => {
         if (!BrowserWindow.fromWebContents(event.sender)) return { error: 'Window not found' };
@@ -141,5 +145,89 @@ export function registerIpcHandlers() {
             return { error: String(e) };
         }
     });
+
+    // Storage & Drive Management
+    ipcMain.handle(IPC_CHANNELS.STORAGE_DRIVES_GET, async () => {
+        try {
+            return await storageManager.getDrives();
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.STORAGE_DRIVE_OPEN, async (_event, targetPath: unknown) => {
+        try {
+            if (typeof targetPath !== 'string') return { error: 'Invalid path' };
+            await storageManager.openPath(targetPath);
+            return { success: true };
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.STORAGE_LARGE_FILES_SCAN, async (_event, targetPath?: unknown, maxDepth?: unknown) => {
+        try {
+            const dir = typeof targetPath === 'string' && targetPath.trim() ? targetPath : 'C:\\';
+            const depth = typeof maxDepth === 'number' && maxDepth > 0 && maxDepth <= 10 ? maxDepth : 6;
+            return await storageManager.scanLargeFilesAndFolders(dir, depth);
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.STORAGE_APPS_SCAN, async () => {
+        try {
+            return await storageManager.getInstalledApplications();
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.STORAGE_ITEM_REVEAL, (_event, filePath: unknown) => {
+        try {
+            if (typeof filePath !== 'string') return { error: 'Invalid file path' };
+            const ok = storageManager.revealInExplorer(filePath);
+            return { success: ok };
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.STORAGE_ITEM_DELETE, async (_event, filePath: unknown) => {
+        try {
+            if (typeof filePath !== 'string') return { error: 'Invalid file path' };
+            return await storageManager.deleteFile(filePath);
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
+
+    // Running Applications & Task Management
+    ipcMain.handle(IPC_CHANNELS.PROCESSES_GET, async () => {
+        try {
+            return await processManager.getProcesses();
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.PROCESS_KILL, async (_event, pid: unknown) => {
+        try {
+            if (typeof pid !== 'number' || isNaN(pid)) return { error: 'Invalid process PID' };
+            return await processManager.killProcess(pid);
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
+
+    // Comprehensive PC Specifications
+    ipcMain.handle(IPC_CHANNELS.SPECS_GET, async () => {
+        try {
+            return await specsManager.getSpecs();
+        } catch (e) {
+            return { error: String(e) };
+        }
+    });
+
     void scheduler.loadSchedules();
 }
