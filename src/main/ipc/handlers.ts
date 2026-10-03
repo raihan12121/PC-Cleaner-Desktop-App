@@ -63,7 +63,7 @@ export function registerIpcHandlers() {
         if (!BrowserWindow.fromWebContents(event.sender)) return { error: 'Window not found' };
         resetDatabase(); scanRegistry.clear(); await scheduler.loadSchedules(); return { success: true };
     });
-    ipcMain.handle(IPC_CHANNELS.GET_VERSION, () => process.env.npm_package_version || '1.0.5');
+    ipcMain.handle(IPC_CHANNELS.GET_VERSION, () => process.env.npm_package_version || '1.0.6');
     ipcMain.on(IPC_CHANNELS.WINDOW_MINIMIZE, event => BrowserWindow.fromWebContents(event.sender)?.minimize());
     ipcMain.on(IPC_CHANNELS.WINDOW_MAXIMIZE, event => { const win = BrowserWindow.fromWebContents(event.sender); if (win?.isMaximized()) win.unmaximize(); else win?.maximize(); });
     ipcMain.on(IPC_CHANNELS.WINDOW_CLOSE, event => BrowserWindow.fromWebContents(event.sender)?.close());

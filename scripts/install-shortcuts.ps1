@@ -1,5 +1,11 @@
 $WshShell = New-Object -ComObject WScript.Shell
-$appDir = "$env:LOCALAPPDATA\pc_cleaner\app-1.0.5"
+$baseDir = "$env:LOCALAPPDATA\pc_cleaner"
+$latest = Get-ChildItem -Path $baseDir -Directory -Filter "app-*" -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+if ($latest) {
+    $appDir = $latest.FullName
+} else {
+    $appDir = "$baseDir\app-1.0.6"
+}
 $exePath = "$appDir\PC Cleaner.exe"
 
 $shortcuts = @(

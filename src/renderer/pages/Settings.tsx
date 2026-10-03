@@ -251,7 +251,7 @@ const Settings: React.FC = () => {
                         <div>
                             <div className="text-[14px] font-bold text-white tracking-tight">PC Cleaner</div>
                             <div className="text-[11px] text-[#86868B] mt-0.5">System Optimization & Maintenance Suite</div>
-                            <div className="text-[10px] text-white/40 mt-1 font-mono">Version 1.0.5 (Windows x64)</div>
+                            <div className="text-[10px] text-white/40 mt-1 font-mono">Version 1.0.6 (Windows x64)</div>
                         </div>
                     </div>
                     <span className="px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-[11px] font-medium text-[#30D158]">

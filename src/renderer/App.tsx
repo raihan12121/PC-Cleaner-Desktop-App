@@ -54,7 +54,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, badge }) => (
 );
 
 const AppContent: React.FC = () => {
-    const [version, setVersion] = useState('1.0.5');
+    const [version, setVersion] = useState('1.0.6');
     const { resolvedTheme, toggleTheme } = useTheme();
 
     useEffect(() => {
